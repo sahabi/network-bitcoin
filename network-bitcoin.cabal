@@ -7,7 +7,7 @@ Name:                network-bitcoin
 -- The package version. See the Haskell package versioning policy
 -- (http://www.haskell.org/haskellwiki/Package_versioning_policy) for
 -- standards guiding when and how versions should be incremented.
-Version:             0.1.5
+Version:             0.2.0
 
 -- A short (one-line) description of the package.
 Synopsis:            Interface with Bitcoin RPC
@@ -27,6 +27,11 @@ Description:
     >    auth = Auth "http://127.0.0.1:8332" "user" "password"
     .
     To learn more about Bitcoin, see <http://www.bitcoin.org>.
+    .
+    Changes in v2.0
+    .
+    - Support for many more API calls
+    - Update to latest version of aeson and family.
     .
     Changes in v0.1.5
     .
@@ -54,7 +59,7 @@ Homepage: http://github.com/mndrix/network-bitcoin
 Bug-reports: http://github.com/mndrix/network-bitcoin/issues
 
 -- A copyright notice.
-Copyright:           Copyright 2011, Michael Hendricks
+Copyright:           Copyright 2012, Michael Hendricks
 
 Category:            Network
 
@@ -79,13 +84,14 @@ Library
   
   -- Packages needed in order to build this package.
   Build-depends:       
-    aeson == 0.3.*,
-    attoparsec >= 0.7,
-    bytestring >= 0.9,
-    containers >= 0.4,
+    aeson == 0.6.*,
+    bytestring >= 0.10,
+    attoparsec == 0.10.*,
+    unordered-containers >= 0.2,
     HTTP >= 4000,
     network >= 2.3,
     text >= 0.11,
+    vector >= 0.10,
     base == 4.*
   
   -- Modules not exported by this package.
@@ -94,10 +100,6 @@ Library
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
   -- Build-tools:         
 
-Test-suite test-main
-    type: exitcode-stdio-1.0
-    main-is: test-main.hs
-  
 Source-repository head
     type: git
     location: git://github.com/mndrix/network-bitcoin.git
