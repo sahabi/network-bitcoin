@@ -2,3 +2,5 @@ language: haskell
 notifications:
     email:
         - cg.wowus.cg@gmail.com
+    on_success: always
+    on_failure: always
