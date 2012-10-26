@@ -4,3 +4,5 @@ notifications:
         - cg.wowus.cg@gmail.com
     on_success: always
     on_failure: always
+install:
+    - cabal install --enable-tests --haddock-html --haddock-internal
