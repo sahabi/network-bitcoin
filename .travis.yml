@@ -1,0 +1,4 @@
+language: haskell
+notifications:
+    email:
+        - cg.wowus.cg@gmail.com
