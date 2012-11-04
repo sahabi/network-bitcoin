@@ -41,7 +41,7 @@ Copyright:           Copyright 2012, Michael Hendricks
 Category:            Network
 Build-type:          Simple
 Cabal-version:       >=1.8
-
+tested-with: GHC ==7.4.1, GHC ==7.6.1
 
 Library
   hs-source-dirs: src
