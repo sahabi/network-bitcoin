@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings, DeriveDataTypeable #-}
 {-# OPTIONS_GHC -Wall #-}
+-- | Contains the common types used through bitcoin RPC calls, that aren't
+--   specific to a single submodule.
 module Network.Bitcoin.Types ( Auth(..)
                              , BitcoinException(..)
                              , HexString

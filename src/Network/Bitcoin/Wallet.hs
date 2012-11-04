@@ -1,5 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wall #-}
+-- | An interface to bitcoind's available wallet-related RPC calls.
+--   The implementation of these functions can be found at
+--   <https://github.com/bitcoin/bitcoin/blob/master/src/rpcwallet.cpp>.
+--
+--   If any APIs are missing, patches are always welcome. If you look at the
+--   source of this module, you'll see that the interface code is trivial.
+--
+--   Certain APIs were too complicated for me to write an interface for. If
+--   you figure them out, then patches are always welcome! They're left in
+--   the source as comments.
 module Network.Bitcoin.Wallet ( Auth(..)
                               , BitcoindInfo(..)
                               , getBitcoindInfo
@@ -115,7 +125,8 @@ getBitcoindInfo auth = callApi auth "getinfo" []
 --   address book so payments received with the address will be credited to the
 --   given account.
 --
---   If no account is specified, the address will be credited to "".
+--   If no account is specified, the address will be credited to the account
+--   whose name is the empty string. i.e. the default account.
 getNewAddress :: Auth -> Maybe Account -> IO Address
 getNewAddress auth ma = let acc = fromMaybe "" ma
                          in callApi auth "getnewaddress" [ tj acc ]
@@ -139,15 +150,15 @@ getAddressByAccount auth acc = callApi auth "getaddressbyaccount" [ tj acc ]
 
 -- | Sends some bitcoins to an address.
 sendToAddress :: Auth
-              -- | Who we're sending to.
               -> Address
-              -- | The amount to send.
+              -- ^ Who we're sending to.
               -> BTC
-              -- | An optional comment for the transaction.
+              -- ^ The amount to send.
               -> Maybe Text
-              -- | An optional comment-to (who did we sent this to?) for the
+              -- ^ An optional comment for the transaction.
+              -> Maybe Text
+              -- ^ An optional comment-to (who did we sent this to?) for the
               --   transaction.
-              -> Maybe Text
               -> IO TransactionID
 sendToAddress auth addr amount comm comm2 =
     callApi auth "sendtoaddress" [ tj addr, tj $ WBTC amount, tj comm, tj comm2 ]
@@ -186,23 +197,23 @@ type Signature = HexString
 
 -- | Sign a message with the private key of an address.
 signMessage :: Auth
-            -- | The address whose private key we'll use.
             -> Address
-            -- | The message to sign.
+            -- ^ The address whose private key we'll use.
             -> Text
+            -- ^ The message to sign.
             -> IO Signature
 signMessage auth addr msg = callApi auth "signmessage" [ tj addr, tj msg ]
 
 -- | Verifies a signed message.
 verifyMessage :: Auth
-              -- | The address of the original signer.
               -> Address
-              -- | The message's signature.
+              -- ^ The address of the original signer.
               -> Signature
-              -- | The message.
+              -- ^ The message's signature.
               -> Text
-              -- | Was the signature valid?
+              -- ^ The message.
               -> IO Bool
+              -- ^ Was the signature valid?
 verifyMessage auth addr sig msg =
     callApi auth "verifymessage" [ tj addr, tj sig, tj msg ]
 
@@ -231,11 +242,11 @@ getReceivedByAccount auth acc =
 -- | Returns the total amount received by addresses with the given account,
 --   counting only transactions with the given minimum number of confirmations.
 getReceivedByAccount' :: Auth
-                      -- | The account in question.
                       -> Account
-                      -- | The minimum number of confirmations needed for a
-                      --   transaction to count towards the total.
+                      -- ^ The account in question.
                       -> Int
+                      -- ^ The minimum number of confirmations needed for a
+                      --   transaction to count towards the total.
                       -> IO BTC
 getReceivedByAccount' auth acc minconf =
     unwrapBTC <$> callApi auth "getreceivedbyaccount" [ tj acc, tj minconf ]
@@ -258,9 +269,9 @@ getBalance' auth acc =
 --   at least the given number of confirmations.
 getBalance'' :: Auth
              -> Account
-             -- | The minimum number of confirmations needed for a transaction
-             --   to cuont towards the total.
              -> Int
+             -- ^ The minimum number of confirmations needed for a transaction
+             --   to cuont towards the total.
              -> IO BTC
 getBalance'' auth acc minconf =
     unwrapBTC <$> callApi auth "getbalance" [ tj acc, tj minconf ]
@@ -285,16 +296,16 @@ moveBitcoins auth from to amt comm =
 --
 --   A transaction and sender comment may be optionally provided.
 sendFromAccount :: Auth
-                -- | The account to send from.
                 -> Account
-                -- | The address to send to.
+                -- ^ The account to send from.
                 -> Address
-                -- | The amount to send.
+                -- ^ The address to send to.
                 -> BTC
-                -- | An optional transaction comment.
+                -- ^ The amount to send.
                 -> Maybe Text
-                -- | An optional comment on who the money is going to.
+                -- ^ An optional transaction comment.
                 -> Maybe Text
+                -- ^ An optional comment on who the money is going to.
                 -> IO TransactionID
 sendFromAccount auth from to amount comm comm2 =
     callApi auth "sendfrom" [ tj from, tj to, tj $ WBTC amount, tj one, tj comm, tj comm2 ]
@@ -302,12 +313,12 @@ sendFromAccount auth from to amount comm comm2 =
 
 -- | Send to a whole bunch of address at once.
 sendMany :: Auth
-         -- | The account to send from.
          -> Account
-         -- | The address, and how much to send to each one.
+         -- ^ The account to send from.
          -> Vector (Address, BTC)
-         -- | An optional transaction comment.
+         -- ^ The address, and how much to send to each one.
          -> Maybe Text
+         -- ^ An optional transaction comment.
          -> IO TransactionID
 sendMany auth acc amounts comm =
     callApi auth "sendmany" [ tj acc, tj $ AA amounts, tj comm ]
@@ -346,23 +357,23 @@ listReceivedByAddress auth = listReceivedByAddress' auth 1 False
 -- | List the amount received by each of our addresses, counting only
 --   transactions with the given minimum number of confirmations.
 listReceivedByAddress' :: Auth
-                       -- | The minimum number of confirmations before a
+                       -> Int
+                       -- ^ The minimum number of confirmations before a
                        --   transaction counts toward the total amount
                        --   received.
-                       -> Int
-                       -- | Should we include addresses with no money
-                       --   received?
                        -> Bool
+                       -- ^ Should we include addresses with no money
+                       --   received?
                        -> IO (Vector ReceivedByAddress)
 listReceivedByAddress' auth minconf includeEmpty =
     callApi auth "listreceivedbyaddress" [ tj minconf, tj includeEmpty ]
 
 data ReceivedByAccount =
-    ReceivedByAccount { -- | The account we received into.
-                        raccAccount :: Account
-                      -- | The mount received.
+    ReceivedByAccount { raccAccount :: Account
+                      -- ^ The account we received into.
                       , raccAmount  :: BTC
-                      -- | The number of confirmations of the most recent
+                      -- ^ The mount received.
+                      -- ^ The number of confirmations of the most recent
                       --   included transaction.
                       , raccNumConfirmations :: Integer
                       }
@@ -382,12 +393,12 @@ listReceivedByAccount auth = listReceivedByAccount' auth 1 False
 -- | List the amount received by each of our accounts, counting only
 --   transactions with the given minimum number of confirmations.
 listReceivedByAccount' :: Auth
-                       -- | The minimum number of confirmations before a
-                       --   transaction counts toward the total received.
                        -> Int
-                       -- | Should we include the accounts with no money
-                       --   received?
+                       -- ^ The minimum number of confirmations before a
+                       --   transaction counts toward the total received.
                        -> Bool
+                       -- ^ Should we include the accounts with no money
+                       --   received?
                        -> IO (Vector ReceivedByAccount)
 listReceivedByAccount' auth minconf includeEmpty =
     callApi auth "listreceivedbyaccount" [ tj minconf, tj includeEmpty ]
@@ -414,20 +425,20 @@ keyPoolRefill auth = callApi auth "keypoolrefill" []
 
 -- | Stores the wallet decryption key in memory for the given amount of time.
 unlockWallet :: Auth
-             -- | The decryption key.
              -> Text
-             -- | How long to store the key in memory (in seconds).
+             -- ^ The decryption key.
              -> Integer
+             -- ^ How long to store the key in memory (in seconds).
              -> IO ()
 unlockWallet auth pass timeout =
     callApi auth "walletpassphrase" [ tj pass, tj timeout ]
 
 -- | Changes the wallet passphrase.
 changePassword :: Auth
-               -- | The old password.
                -> Text
-               -- | The new password.
+               -- ^ The old password.
                -> Text
+               -- ^ The new password.
                -> IO ()
 changePassword auth old new =
     callApi auth "walletpassphrase" [ tj old, tj new ]

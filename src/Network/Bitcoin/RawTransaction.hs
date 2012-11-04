@@ -245,11 +245,11 @@ listUnspent auth mmin mmax vaddrs =
 --   the targets specified. In the future, such a scenario might throw an
 --   exception.
 createRawTransaction :: Auth
-                     -- | The unspent transactions we'll be using as our output.
                      -> Vector UnspentTransaction
-                     -- | The addresses we're sending money to, along with how
-                     --   much each of them gets.
+                     -- ^ The unspent transactions we'll be using as our output.
                      -> Vector (Address, BTC)
+                     -- ^ The addresses we're sending money to, along with how
+                     --   much each of them gets.
                      -> IO HexString
 createRawTransaction auth us tgts =
     callApi auth "createrawtransaction" [ tj us, tj $ AA tgts ]
@@ -328,20 +328,20 @@ instance FromJSON RawSignedTransaction where
 
 -- | Sign inputs for a raw transaction.
 signRawTransaction :: Auth
-                   -- | The raw transaction whose inputs we're signing.
                    -> RawTransaction
-                   -- | An optional list of previous transaction outputs that
+                   -- ^ The raw transaction whose inputs we're signing.
+                   -> Maybe (Vector UnspentTransaction)
+                   -- ^ An optional list of previous transaction outputs that
                    --   this transaction depends on but may not yet be in the
                    --   block chain.
-                   -> Maybe (Vector UnspentTransaction)
-                   -- | An array of base58-encoded private keys that, if given,
-                   --   will be the only keys used to sign the transaction.
                    -> Maybe (Vector HexString)
-                   -- | Who can pay for this transaction? 'All' by default.
+                   -- ^ An array of base58-encoded private keys that, if given,
+                   --   will be the only keys used to sign the transaction.
                    -> Maybe WhoCanPay
-                   -- | Returns 'Nothing' if the transaction has a complete set
-                   --   of signatures, and the raw signed transa
+                   -- ^ Who can pay for this transaction? 'All' by default.
                    -> IO RawSignedTransaction
+                   -- ^ Returns 'Nothing' if the transaction has a complete set
+                   --   of signatures, and the raw signed transa
 signRawTransaction auth rt us' privkeys wcp =
     let us = V.map UFS <$> us' :: Maybe (Vector UnspentForSigning)
      in callApi auth "signrawtransaction" [ tj rt

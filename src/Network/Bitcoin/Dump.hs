@@ -18,8 +18,8 @@ type PrivateKey = Text
 -- | Adds a private key (as returned by dumpprivkey) to your wallet.
 importPrivateKey :: Auth
                  -> PrivateKey
-                 -- | An optional label for the key.
                  -> Maybe Account
+                 -- ^ An optional label for the key.
                  -> IO ()
 importPrivateKey auth pk Nothing =
     callApi auth "importprivkey" [ tj pk ]
