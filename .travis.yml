@@ -5,4 +5,7 @@ notifications:
     on_success: always
     on_failure: always
 install:
-    - cabal install --enable-tests --haddock-html --haddock-internal
+    - cabal install --only-dependencies
+    - cabal configure
+    - cabal build
+    - cabal haddock
