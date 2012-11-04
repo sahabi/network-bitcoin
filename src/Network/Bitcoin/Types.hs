@@ -88,5 +88,5 @@ instance FromJSON ScriptSig where
 
 -- | An account on the wallet is just a label to easily specify private keys.
 --
---   The default account is "".
+--   The default account is an empty string.
 type Account = Text
