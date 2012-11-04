@@ -32,12 +32,15 @@ Description:
 License:             BSD3
 License-file:        LICENSE
 Author:              Michael Hendricks <michael@ndrix.org>
-Maintainer:          Michael Hendricks <michael@ndrix.org>
+Maintainer:          Clark Gaebel <cgaebel@uwaterloo.ca>
 Stability:           experimental
 Homepage:            http://github.com/wowus/network-bitcoin
 Bug-reports:         http://github.com/wowus/network-bitcoin/issues
 Copyright:           Copyright 2012, Michael Hendricks
                      Copyright 2012, Clark Gaebel
+Stability: experimental
+Homepage: http://github.com/mndrix/network-bitcoin
+Bug-reports: http://github.com/mndrix/network-bitcoin/issues
 Category:            Network
 Build-type:          Simple
 Cabal-version:       >=1.8
