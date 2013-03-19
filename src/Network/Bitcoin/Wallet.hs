@@ -17,7 +17,7 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               , getAccountAddress
                               , getAccount
                               , setAccount
-                              , getAddressByAccount
+                              , getAddressesByAccount
                               , sendToAddress
                               , AddressInfo(..)
                               , listAddressGroupings
@@ -145,8 +145,8 @@ getAccount :: Auth -> Address -> IO Account
 getAccount auth addr = callApi auth "getaccount" [ tj addr ]
 
 -- | Returns the list of addresses for the given address.
-getAddressByAccount :: Auth -> Account -> IO (Vector Address)
-getAddressByAccount auth acc = callApi auth "getaddressbyaccount" [ tj acc ]
+getAddressesByAccount :: Auth -> Account -> IO (Vector Address)
+getAddressesByAccount auth acc = callApi auth "getAddressesByAccount" [ tj acc ]
 
 -- | Sends some bitcoins to an address.
 sendToAddress :: Auth
