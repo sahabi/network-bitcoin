@@ -271,7 +271,7 @@ getBalance'' :: Auth
              -> Account
              -> Int
              -- ^ The minimum number of confirmations needed for a transaction
-             --   to cuont towards the total.
+             --   to count towards the total.
              -> IO BTC
 getBalance'' auth acc minconf =
     unwrapBTC <$> callApi auth "getbalance" [ tj acc, tj minconf ]
