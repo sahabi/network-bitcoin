@@ -146,7 +146,7 @@ getAccount auth addr = callApi auth "getaccount" [ tj addr ]
 
 -- | Returns the list of addresses for the given address.
 getAddressesByAccount :: Auth -> Account -> IO (Vector Address)
-getAddressesByAccount auth acc = callApi auth "getAddressesByAccount" [ tj acc ]
+getAddressesByAccount auth acc = callApi auth "getaddressesbyaccount" [ tj acc ]
 
 -- | Sends some bitcoins to an address.
 sendToAddress :: Auth
