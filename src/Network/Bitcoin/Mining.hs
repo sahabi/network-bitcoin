@@ -119,6 +119,9 @@ instance FromJSON HashData where
                                     <*> o .: "midstate"
     parseJSON _ = mzero
 
+instance ToJSON HashData where
+    toJSON (HashData dat tar has mid) = object ["data" .= dat, "target" .= tar, "hash1" .= has, "midstate" .= mid]
+
 -- | Returns formatted hash data to work on.
 getWork :: Auth -> IO HashData
 getWork auth = callApi auth "getwork" []
