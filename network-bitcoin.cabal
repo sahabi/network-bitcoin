@@ -67,7 +67,7 @@ Library
   -- Packages needed in order to build this package.
   Build-depends:       
     aeson >= 0.6.1,
-    bytestring >= 0.10,
+    bytestring >= 0.9,
     HTTP >= 4000,
     network >= 2.3,
     text >= 0.11,
