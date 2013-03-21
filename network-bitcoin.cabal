@@ -1,5 +1,5 @@
 Name:                network-bitcoin
-Version:             1.0.3
+Version:             1.1.0
 Synopsis:            An interface to bitcoind.
 Description:
     This can be used to send Bitcoins, query balances, etc.  It
@@ -15,21 +15,6 @@ Description:
     >    auth = Auth "http://127.0.0.1:8332" "user" "password"
     .
     To learn more about Bitcoin, see <http://www.bitcoin.org>.
-    .
-    Changes in v1.0
-    .
-    - Total overhaul of the library, with almost the complete bitcoin RPC API
-      covered.
-    .
-    - Dependencies upgraded, and library modernized.
-    .
-    Changes in v0.1.5
-    .
-    - Correct aeson dependency
-    .
-    Changes in v0.1.4
-    .
-    - More accurate conversion of Bitcoin amounts from floating point
 License:             BSD3
 License-file:        LICENSE
 Author:              Michael Hendricks <michael@ndrix.org>
@@ -40,19 +25,18 @@ Homepage:            http://github.com/wowus/network-bitcoin
 Bug-reports:         http://github.com/wowus/network-bitcoin/issues
 Copyright:           2012 Michael Hendricks <michael@ndrix.org>
                      2012 Clark Gaebel <cgaebel@uwaterloo.ca>
-Stability: experimental
-Homepage: http://github.com/mndrix/network-bitcoin
-Bug-reports: http://github.com/mndrix/network-bitcoin/issues
+Stability:           experimental
+Homepage:            http://github.com/mndrix/network-bitcoin
+Bug-reports:         http://github.com/wowus/network-bitcoin/issues
 Category:            Network
 Build-type:          Simple
 Cabal-version:       >=1.8
-tested-with: GHC ==7.4.1, GHC ==7.6.1
+tested-with:         GHC ==7.4.1, GHC ==7.6.2
 
 Library
   hs-source-dirs: src
   ghc-options: -Wall
 
-  -- Modules exported by the library.
   Exposed-modules:
     Network.Bitcoin
     Network.Bitcoin.BlockChain
@@ -64,7 +48,6 @@ Library
     Network.Bitcoin.Types
     Network.Bitcoin.Wallet
   
-  -- Packages needed in order to build this package.
   Build-depends:       
     aeson >= 0.6.1,
     bytestring >= 0.9,
@@ -76,4 +59,4 @@ Library
   
 Source-repository head
     type: git
-    location: git://github.com/mndrix/network-bitcoin.git
+    location: git://github.com/wowus/network-bitcoin.git

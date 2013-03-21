@@ -6,3 +6,4 @@
 .project
 Setup.hs
 dist/
+cabal-dev/
