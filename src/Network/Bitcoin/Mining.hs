@@ -107,12 +107,16 @@ data HashData =
     HashData { blockData :: HexString
              -- | Little-endian hash target, formatted as a hexadecimal string.
              , hdTarget :: HexString
+             , hash1 :: HexString
+             , midstate :: HexString
              }
     deriving ( Show, Read, Ord, Eq )
 
 instance FromJSON HashData where
     parseJSON (Object o) = HashData <$> o .: "data"
                                     <*> o .: "target"
+                                    <*> o .: "hash1"
+                                    <*> o .: "midstate"
     parseJSON _ = mzero
 
 -- | Returns formatted hash data to work on.
