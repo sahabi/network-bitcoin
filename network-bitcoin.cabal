@@ -1,5 +1,5 @@
 Name:                network-bitcoin
-Version:             1.1.0
+Version:             1.2.0
 Synopsis:            An interface to bitcoind.
 Description:
     This can be used to send Bitcoins, query balances, etc.  It
@@ -31,7 +31,7 @@ Bug-reports:         http://github.com/wowus/network-bitcoin/issues
 Category:            Network
 Build-type:          Simple
 Cabal-version:       >=1.8
-tested-with:         GHC ==7.4.1, GHC ==7.6.2
+tested-with:         GHC ==7.4.1, GHC ==7.6.2, GHC ==7.6.3
 
 Library
   hs-source-dirs: src
