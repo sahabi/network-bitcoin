@@ -1,5 +1,5 @@
 Name:                network-bitcoin
-Version:             1.2.0
+Version:             1.2.1
 Synopsis:            An interface to bitcoind.
 Description:
     This can be used to send Bitcoins, query balances, etc.  It
