@@ -47,9 +47,9 @@ setGenerate :: Auth -- ^ bitcoind RPC authorization
                          --   available cores, and any other value to limit it.
             -> IO ()
 setGenerate auth onOff Nothing =
-    callApi auth "setgenerate" [ tj onOff ]
+    unNil <$> callApi auth "setgenerate" [ tj onOff ]
 setGenerate auth onOff (Just limit) =
-    callApi auth "setgenerate" [ tj onOff, tj limit ]
+    unNil <$> callApi auth "setgenerate" [ tj onOff, tj limit ]
 
 -- | Returns a recent hashes per second performance measurement while
 --   generating.

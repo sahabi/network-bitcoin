@@ -417,7 +417,7 @@ backupWallet :: Auth
              -> FilePath
              -> IO ()
 backupWallet auth fp =
-    callApi auth "backupwallet" [ tj fp ]
+    unNil <$> callApi auth "backupwallet" [ tj fp ]
 
 -- | Fills the keypool.
 keyPoolRefill :: Auth -> IO ()
@@ -431,7 +431,7 @@ unlockWallet :: Auth
              -- ^ How long to store the key in memory (in seconds).
              -> IO ()
 unlockWallet auth pass timeout =
-    callApi auth "walletpassphrase" [ tj pass, tj timeout ]
+    unNil <$> callApi auth "walletpassphrase" [ tj pass, tj timeout ]
 
 -- | Changes the wallet passphrase.
 changePassword :: Auth
@@ -441,7 +441,7 @@ changePassword :: Auth
                -- ^ The new password.
                -> IO ()
 changePassword auth old new =
-    callApi auth "walletpassphrase" [ tj old, tj new ]
+    unNil <$> callApi auth "walletpassphrase" [ tj old, tj new ]
 
 -- | Removes the wallet encryption key from memory, locking the wallet.
 --
@@ -451,7 +451,7 @@ changePassword auth old new =
 --   Note: In future releases, we might introduce an "unlocked" monad, so
 --         locking and unlocking is automatic.
 lockWallet :: Auth -> IO ()
-lockWallet auth = callApi auth "walletlock" []
+lockWallet auth = unNil <$> callApi auth "walletlock" []
 
 -- | Encrypts the wallet with the given passphrase.
 --
