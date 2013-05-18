@@ -421,7 +421,7 @@ backupWallet auth fp =
 
 -- | Fills the keypool.
 keyPoolRefill :: Auth -> IO ()
-keyPoolRefill auth = callApi auth "keypoolrefill" []
+keyPoolRefill auth = unNil <$> callApi auth "keypoolrefill" []
 
 -- | Stores the wallet decryption key in memory for the given amount of time.
 unlockWallet :: Auth

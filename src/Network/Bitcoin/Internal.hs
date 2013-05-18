@@ -16,6 +16,7 @@ module Network.Bitcoin.Internal ( module Network.Bitcoin.Types
                                 , FromJSON(..)
                                 , callApi
                                 , callApi'
+                                , Nil(..)
                                 , tj
                                 , AddrAddress(..)
                                 ) where
@@ -108,6 +109,13 @@ callApi auth cmd params = readVal =<< callApi' auth jsonRpcReqBody
                             , "id"      .= (1 :: Int)
                             ]
 {-# INLINE callApi #-}
+
+-- | Used to allow "null" to decode to a tuple.
+data Nil = Nil { unNil :: () }
+
+instance FromJSON Nil where
+    parseJSON Null = return $ Nil ()
+    parseJSON x    = fail $ "\"null\" was expected, but " ++ show x ++ " was recieved."
 
 -- | Internal helper functions to make callApi more readable
 httpAuthority :: Auth -> Authority
