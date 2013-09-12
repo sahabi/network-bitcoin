@@ -68,8 +68,14 @@ Executable network-bitcoin-tests
   ghc-options: -Wall
   main-is: Test/Main.hs
   build-depends:
-    base,
-    network-bitcoin,
-    test-framework             >=0.8,
-    test-framework-quickcheck2 >= 0.3.0.1,
-    QuickCheck                 == 2.5.*
+    aeson >= 0.6.1 && < 0.7,
+    bytestring >= 0.9 && < 0.11,
+    attoparsec == 0.10.*,
+    unordered-containers >= 0.2,
+    HTTP >= 4000,
+    network >= 2.3,
+    text >= 0.11,
+    vector >= 0.10,
+    base == 4.*,
+    QuickCheck == 2.5.*,
+    network-bitcoin

@@ -1,33 +1,34 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
-import Test.Framework ( defaultMain )
-import Test.Framework.Providers.QuickCheck2
-import Test.Framework.Providers.API
+
 import Test.QuickCheck
+import Test.QuickCheck.Monadic
+import Network.Bitcoin
+
 
 main :: IO ()
-main = defaultMain $ tests ++ testsIO
+main = mapM_ qcOnce [ canGetInfo ]--defaultMain tests 
 
 
-tests :: [Test]
-tests = [ testGroup "Test test" [testTest] ]
+qcOnce :: Property -> IO ()
+qcOnce = quickCheckWith stdArgs { maxSuccess = 1
+                                , maxSize = 1
+                                , maxDiscardRatio = 1 
+                                }
+
+auth :: Auth
+auth = Auth "http://localhost:18332" "bitcoinrpc" "bitcoinrpcpassword" 
 
 
-testsIO :: [Test]
-testsIO = map buildTest [ ioTest ]
-
-
-testTest :: Test
-testTest = testProperty "Test" prop_test
-
-
-ioTest :: IO Test
-ioTest = do
-    putStrLn "Making an IO test."
-    return $ testProperty "IO Test" prop_test 
-
-
-prop_test :: Bool -> Bool
-prop_test b = b || not b
+canGetInfo :: Property 
+canGetInfo = monadicIO $ do
+    info <- run $ getBitcoindInfo auth
+    let checks = [ bitcoinVersion info > 80000
+                 , onTestNetwork info  
+                 , bitcoindErrors info == ""
+                 ]
+    assert $ and checks 
 
 
