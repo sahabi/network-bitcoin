@@ -13,6 +13,7 @@ import Data.Vector ( empty, mapM )
 main :: IO ()
 main = mapM_ qcOnce [ canGetInfo
                     , canListUnspent
+                    , canGetOutputInfo
                     ]
 
 
@@ -39,6 +40,12 @@ canGetInfo = monadicIO $ do
 
 canListUnspent :: Property
 canListUnspent = monadicIO $ do
-    vUnspent <- run $ listUnspent auth Nothing Nothing Data.Vector.empty
-    _ <- run $ print vUnspent
-    Data.Vector.mapM (\coins -> assert True) vUnspent
+    _ <- run $ listUnspent auth Nothing Nothing Data.Vector.empty
+    assert True
+
+
+canGetOutputInfo :: Property
+canGetOutputInfo = monadicIO $ do
+    info <- run $ getOutputInfo auth "ab8e26fd95fa371ac15b43684d0c6797fb573757095e7d763ba86ad315f7db04" 1
+    _ <- run $ print info
+    assert True
