@@ -79,3 +79,4 @@ Executable network-bitcoin-tests
     base == 4.*,
     QuickCheck == 2.5.*,
     network-bitcoin
+

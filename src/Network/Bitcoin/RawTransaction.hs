@@ -201,16 +201,18 @@ getRawTransactionInfo auth txid =
 
 data UnspentTransaction =
     UnspentTransaction { unspentTransactionId :: TransactionID
-                       , outIdx :: Integer
-                       , unspentScriptPubKey :: HexString
-                       , redeemScript :: Maybe HexString
-                       , unspentAmount :: BTC
-                       , usConfirmations :: Integer
-                       }
+                       , outIdx               :: Integer
+                       , unspentAddress       :: Address
+                       , unspentScriptPubKey  :: HexString
+                       , redeemScript         :: Maybe HexString
+                       , unspentAmount        :: BTC
+                       , usConfirmations      :: Integer
+                       } deriving ( Show, Eq )
 
 instance FromJSON UnspentTransaction where
     parseJSON (Object o) = UnspentTransaction <$> o .:  "txid"
                                               <*> o .:  "vout"
+                                              <*> o .:  "address"
                                               <*> o .:  "scriptPubKey"
                                               <*> o .:? "redeemScript"
                                               <*> o .:  "amount"
