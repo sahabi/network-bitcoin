@@ -139,7 +139,7 @@ data OutputInfo =
                -- | The amount transferred.
                , oiAmount :: BTC
                -- | The public key of the sender.
-               , oiScriptPubKey :: HexString
+               , oiScriptPubKey :: ScriptPubKey
                -- | The version of this transaction.
                , oiVersion :: Integer
                -- | Is this transaction part of the coin base?
