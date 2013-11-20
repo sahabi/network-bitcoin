@@ -36,6 +36,8 @@ data PeerInfo =
              --   (and in milliseconds), the last time we sent this peer any
              --   data.
              , lastRecv :: Integer
+             , bytesSent :: Integer
+             , bytesRecv :: Integer
               -- | How long have we been connected to this peer (in
               --   milliseconds).
              , connectionTime :: Integer
@@ -44,7 +46,6 @@ data PeerInfo =
              -- | The sub-version of the Bitcoin client the peer is running.
              , peerSubversion :: Text
              , inbound :: Bool
-             , releaseTime :: Integer
              , startingHeight :: Integer
              -- | How many times has this peer behaved badly?
              , banScore :: Integer
@@ -56,11 +57,12 @@ instance FromJSON PeerInfo where
                                     <*> o .: "services"
                                     <*> o .: "lastsend"
                                     <*> o .: "lastrecv"
+                                    <*> o .: "bytessent"
+                                    <*> o .: "bytesrecv"
                                     <*> o .: "conntime"
                                     <*> o .: "version"
                                     <*> o .: "subver"
                                     <*> o .: "inbound"
-                                    <*> o .: "releasetime"
                                     <*> o .: "startingheight"
                                     <*> o .: "banscore"
     parseJSON _ = mzero
