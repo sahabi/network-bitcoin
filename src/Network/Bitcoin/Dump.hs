@@ -10,6 +10,7 @@ module Network.Bitcoin.Dump ( PrivateKey
                             , dumpPrivateKey
                             ) where
 
+import Control.Applicative
 import Network.Bitcoin.Internal
 
 -- | A textual representation of a bitcoin private key.
@@ -22,9 +23,9 @@ importPrivateKey :: Auth
                  -- ^ An optional label for the key.
                  -> IO ()
 importPrivateKey auth pk Nothing =
-    callApi auth "importprivkey" [ tj pk ]
+    unNil <$> callApi auth "importprivkey" [ tj pk ]
 importPrivateKey auth pk (Just label) =
-    callApi auth "importprivkey" [ tj pk, tj label ]
+    unNil <$> callApi auth "importprivkey" [ tj pk, tj label ]
 
 -- | Reveals the private key corresponding to the given address.
 dumpPrivateKey :: Auth

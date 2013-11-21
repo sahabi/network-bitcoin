@@ -138,7 +138,7 @@ getAccountAddress auth acc = callApi auth "getaccountaddress" [ tj acc ]
 
 -- | Sets the account associated with the given address.
 setAccount :: Auth -> Address -> Account -> IO ()
-setAccount auth addr acc = callApi auth "setaccount" [ tj addr, tj acc ]
+setAccount auth addr acc = unNil <$> callApi auth "setaccount" [ tj addr, tj acc ]
 
 -- | Returns the account associated with the given address.
 getAccount :: Auth -> Address -> IO Account
