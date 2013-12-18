@@ -1,5 +1,5 @@
 Name:                network-bitcoin
-Version:             1.5.0
+Version:             1.5.1
 Synopsis:            An interface to bitcoind.
 Description:
     This can be used to send Bitcoins, query balances, etc.  It
@@ -77,6 +77,6 @@ Executable network-bitcoin-tests
     text >= 0.11,
     vector >= 0.10,
     base == 4.*,
-    QuickCheck == 2.5.*,
+    QuickCheck == 2.6.*,
     network-bitcoin
 
