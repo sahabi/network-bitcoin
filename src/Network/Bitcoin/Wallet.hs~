@@ -462,7 +462,7 @@ listSinceBlock :: Auth
                -> Maybe Int
                -- ^ The minimum number of confirmations before a
                --   transaction counts toward the total received.
-               -> IO (SinceBlock)
+               -> IO (ListSinceBlockResult)
 listSinceBlock auth blockHash (Just minConf) =
     callApi auth "listsinceblock" [ tj blockHash, tj minConf ]
 listSinceBlock auth blockHash _ =
