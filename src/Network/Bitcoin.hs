@@ -100,6 +100,7 @@ module Network.Bitcoin
     -- , listAccounts
     , SinceBlock(..)
     , SinceBlockTransaction(..)
+    , TransactionCategory(..)
     , listSinceBlock
     -- , getTransaction
     , backupWallet

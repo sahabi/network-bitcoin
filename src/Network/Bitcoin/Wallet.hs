@@ -45,6 +45,7 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               -- , listAccounts
                               , SinceBlock(..)
                               , SinceBlockTransaction(..)
+                              , TransactionCategory(..)
                               , listSinceBlock
                               -- , getTransaction
                               , backupWallet
@@ -421,11 +422,11 @@ instance FromJSON SinceBlock where
 data SinceBlockTransaction =
     SinceBlockTransaction {
         -- | The account associated with the receiving address.
-        sbtReceivingAccount :: Account
+          sbtReceivingAccount :: Account
         -- | The receiving address of the transaction.
         , sbtAddress :: Address
         -- | The category of the transaction (As of 0.8.6 this field can be send,orphan,immature,generate,receive,move).
-        , sbtCategory :: Text
+        , sbtCategory :: TransactionCategory
         -- | The amount of bitcoins transferred.
         , sbtAmountBitcoin :: BTC
         -- | The number of confirmation of the transaction.
@@ -455,6 +456,27 @@ instance FromJSON SinceBlockTransaction where
                                                  <*> o .:  "walletconflicts"
                                                  <*> o .:  "time"
                                                  <*> o .:  "timereceived"
+    parseJSON _ = mzero
+    
+data TransactionCategory = TCSend
+                         | TCOrphan
+                         | TCImmature
+                         | TCGenerate
+                         | TCReceive
+                         | TCMove
+                         | TCErrorUnexpected Text
+    deriving ( Show, Read, Ord, Eq )
+
+instance FromJSON TransactionCategory where
+    parseJSON (String s) = return $ createTC s
+        where createTC :: Text -> TransactionCategory
+              createTC "send"     = TCSend
+              createTC "orphan"   = TCOrphan
+              createTC "immature" = TCImmature
+              createTC "generate" = TCGenerate
+              createTC "receive"  = TCReceive
+              createTC "move"     = TCMove
+              createTC uc         = TCErrorUnexpected uc
     parseJSON _ = mzero
 
 listSinceBlock :: Auth
