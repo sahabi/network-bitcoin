@@ -43,7 +43,10 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               , listReceivedByAccount'
                               -- , listTransactions
                               -- , listAccounts
-                              -- , listSinceBlock
+                              , SinceBlock(..)
+                              , SinceBlockTransaction(..)
+                              , TransactionCategory(..)
+                              , listSinceBlock
                               -- , getTransaction
                               , backupWallet
                               , keyPoolRefill
@@ -60,6 +63,7 @@ import Data.Aeson as A
 import Data.Maybe
 import Data.Vector as V
 import Network.Bitcoin.Internal
+import Network.Bitcoin.BlockChain (BlockHash)
 
 -- | A plethora of information about a bitcoind instance.
 data BitcoindInfo =
@@ -402,10 +406,92 @@ listReceivedByAccount' :: Auth
                        -> IO (Vector ReceivedByAccount)
 listReceivedByAccount' auth minconf includeEmpty =
     callApi auth "listreceivedbyaccount" [ tj minconf, tj includeEmpty ]
+    
+
+data SinceBlock = 
+    SinceBlock { transactions :: Vector SinceBlockTransaction
+               , lastBlockHash :: BlockHash
+               }
+    deriving ( Show, Read, Ord, Eq )
+    
+instance FromJSON SinceBlock where
+    parseJSON (Object o) = SinceBlock <$> o .:  "transactions"
+                                      <*> o .:  "lastblock"
+    parseJSON _ = mzero
+
+data SinceBlockTransaction =
+    SinceBlockTransaction {
+        -- | The account associated with the receiving address.
+          sbtReceivingAccount :: Account
+        -- | The receiving address of the transaction.
+        , sbtAddress :: Address
+        -- | The category of the transaction (As of 0.8.6 this field can be send,orphan,immature,generate,receive,move).
+        , sbtCategory :: TransactionCategory
+        -- | The amount of bitcoins transferred.
+        , sbtAmountBitcoin :: BTC
+        -- | The number of confirmation of the transaction.
+        , sbtConfirmations :: Integer
+        -- | The hash of the block containing the transaction.
+        , sbtBlockHash :: BlockHash
+        , sbtBlockIndex :: Integer
+        , sbtBlockTime :: Double
+        , sbtTransactionId :: TransactionID
+        -- | The list of transaction ids containing the same data as the original transaction (See ID-malleation bug).
+        , sbtWalletConflicts :: Vector TransactionID
+        , sbtTime :: Integer
+        , sbtTimeReceived :: Integer
+        }
+    deriving ( Show, Read, Ord, Eq )
+
+instance FromJSON SinceBlockTransaction where
+    parseJSON (Object o) = SinceBlockTransaction <$> o .:  "account"
+                                                 <*> o .:  "address"
+                                                 <*> o .:  "category"
+                                                 <*> o .:  "amount"
+                                                 <*> o .:  "confirmations"
+                                                 <*> o .:  "blockhash"
+                                                 <*> o .:  "blockindex"
+                                                 <*> o .:  "blocktime"
+                                                 <*> o .:  "txid"
+                                                 <*> o .:  "walletconflicts"
+                                                 <*> o .:  "time"
+                                                 <*> o .:  "timereceived"
+    parseJSON _ = mzero
+    
+data TransactionCategory = TCSend
+                         | TCOrphan
+                         | TCImmature
+                         | TCGenerate
+                         | TCReceive
+                         | TCMove
+                         | TCErrorUnexpected Text
+    deriving ( Show, Read, Ord, Eq )
+
+instance FromJSON TransactionCategory where
+    parseJSON (String s) = return $ createTC s
+        where createTC :: Text -> TransactionCategory
+              createTC "send"     = TCSend
+              createTC "orphan"   = TCOrphan
+              createTC "immature" = TCImmature
+              createTC "generate" = TCGenerate
+              createTC "receive"  = TCReceive
+              createTC "move"     = TCMove
+              createTC uc         = TCErrorUnexpected uc
+    parseJSON _ = mzero
+
+listSinceBlock :: Auth
+               -> BlockHash
+               -> Maybe Int
+               -- ^ The minimum number of confirmations before a
+               --   transaction counts toward the total received.
+               -> IO (SinceBlock)
+listSinceBlock auth blockHash (Just minConf) =
+    callApi auth "listsinceblock" [ tj blockHash, tj minConf ]
+listSinceBlock auth blockHash _ =
+    callApi auth "listsinceblock" [ tj blockHash ]
 
 -- TODO: listtransactions
 --       listaccounts
---       listsinceblock
 --       gettransaction
 --
 --       These functions are just way too complicated for me to write.
