@@ -41,10 +41,10 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               , ReceivedByAccount(..)
                               , listReceivedByAccount
                               , listReceivedByAccount'
-                              -- , listTransactions
+                              , listTransactions
                               -- , listAccounts
                               , SinceBlock(..)
-                              , SinceBlockTransaction(..)
+                              , BlockTransaction(..)
                               , TransactionCategory(..)
                               , listSinceBlock
                               -- , getTransaction
@@ -409,8 +409,8 @@ listReceivedByAccount' auth minconf includeEmpty =
     
 
 data SinceBlock = 
-    SinceBlock { transactions :: Vector SinceBlockTransaction
-               , lastBlockHash :: BlockHash
+    SinceBlock { sbTransactions :: [BlockTransaction]
+               , sbLastBlockHash :: BlockHash
                }
     deriving ( Show, Read, Ord, Eq )
     
@@ -419,43 +419,44 @@ instance FromJSON SinceBlock where
                                       <*> o .:  "lastblock"
     parseJSON _ = mzero
 
-data SinceBlockTransaction =
-    SinceBlockTransaction {
+data BlockTransaction =
+    BlockTransaction {
         -- | The account associated with the receiving address.
-          sbtReceivingAccount :: Account
+          btReceivingAccount :: Account
         -- | The receiving address of the transaction.
-        , sbtAddress :: Address
-        -- | The category of the transaction (As of 0.8.6 this field can be send,orphan,immature,generate,receive,move).
-        , sbtCategory :: TransactionCategory
+        , btAddress :: Address
+        -- | The category of the transaction
+        , btCategory :: TransactionCategory
         -- | The amount of bitcoins transferred.
-        , sbtAmountBitcoin :: BTC
+        , btAmountBitcoin :: BTC
         -- | The number of confirmation of the transaction.
-        , sbtConfirmations :: Integer
+        , btConfirmations :: Integer
         -- | The hash of the block containing the transaction.
-        , sbtBlockHash :: BlockHash
-        , sbtBlockIndex :: Integer
-        , sbtBlockTime :: Double
-        , sbtTransactionId :: TransactionID
-        -- | The list of transaction ids containing the same data as the original transaction (See ID-malleation bug).
-        , sbtWalletConflicts :: Vector TransactionID
-        , sbtTime :: Integer
-        , sbtTimeReceived :: Integer
+        , btBlockHash :: BlockHash
+        , btBlockIndex :: Integer
+        , btBlockTime :: Double
+        , btTransactionId :: TransactionID
+        -- | The list of transaction ids containing the same data as the 
+        --   original transaction (See ID-malleation bug).
+        , btWalletConflicts :: Vector TransactionID
+        , btTime :: Integer
+        , btTimeReceived :: Integer
         }
     deriving ( Show, Read, Ord, Eq )
 
-instance FromJSON SinceBlockTransaction where
-    parseJSON (Object o) = SinceBlockTransaction <$> o .:  "account"
-                                                 <*> o .:  "address"
-                                                 <*> o .:  "category"
-                                                 <*> o .:  "amount"
-                                                 <*> o .:  "confirmations"
-                                                 <*> o .:  "blockhash"
-                                                 <*> o .:  "blockindex"
-                                                 <*> o .:  "blocktime"
-                                                 <*> o .:  "txid"
-                                                 <*> o .:  "walletconflicts"
-                                                 <*> o .:  "time"
-                                                 <*> o .:  "timereceived"
+instance FromJSON BlockTransaction where
+    parseJSON (Object o) = BlockTransaction <$> o .:  "account"
+                                            <*> o .:  "address"
+                                            <*> o .:  "category"
+                                            <*> o .:  "amount"
+                                            <*> o .:  "confirmations"
+                                            <*> o .:  "blockhash"
+                                            <*> o .:  "blockindex"
+                                            <*> o .:  "blocktime"
+                                            <*> o .:  "txid"
+                                            <*> o .:  "walletconflicts"
+                                            <*> o .:  "time"
+                                            <*> o .:  "timereceived"
     parseJSON _ = mzero
     
 data TransactionCategory = TCSend
@@ -478,17 +479,57 @@ instance FromJSON TransactionCategory where
               createTC "move"     = TCMove
               createTC uc         = TCErrorUnexpected uc
     parseJSON _ = mzero
-
+    
+-- | Gets all transactions in blocks since the given block.
 listSinceBlock :: Auth
                -> BlockHash
+               -- ^ The hash of the first block to list.
                -> Maybe Int
                -- ^ The minimum number of confirmations before a
-               --   transaction counts toward the total received.
+               --   transaction can be returned as 'sbLastBlockHash'. This does
+               --   not in any way affect which transactions are returned 
+               --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
                -> IO (SinceBlock)
-listSinceBlock auth blockHash (Just minConf) =
+listSinceBlock auth blockHash conf =
+    listSinceBlock' auth (Just blockHash) conf
+
+-- | Gets all transactions in blocks since the given block, or all 
+--   transactions if ommited.
+listSinceBlock' :: Auth
+                -> Maybe BlockHash
+                -- ^ The hash of the first block to list.
+                -> Maybe Int
+                -- ^ The minimum number of confirmations before a
+                --   transaction can be returned as 'sbLastBlockHash'. This does
+                --   not in any way affect which transactions are returned 
+                --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
+                -> IO (SinceBlock)
+listSinceBlock' auth (Just blockHash) (Just minConf) =
     callApi auth "listsinceblock" [ tj blockHash, tj minConf ]
-listSinceBlock auth blockHash _ =
+listSinceBlock' auth (Just blockHash) _ =
     callApi auth "listsinceblock" [ tj blockHash ]
+listSinceBlock' auth _ _ =
+    callApi auth "listsinceblock" []
+    
+
+-- | Returns transactions from the blockchain.
+listTransactions :: Auth
+                 -> Maybe Account
+                 -- ^ Limits the 'BlockTransaction' returned to those from or to 
+                 --   the given 'Account'. If 'Nothing' all accounts are 
+                 --   included in the query.
+                 -> Maybe Int
+                 -- ^ Limits the number of 'BlockTransaction' returned. If 
+                 --   'Nothing' all transactions are returned.
+                 -> Maybe Int
+                 -- ^ Number of most recent transactions to skip. 
+                 -> IO (Vector BlockTransaction)
+listTransactions auth maccount mcount mfrom = do
+    callApi auth "listtransactions" $ [] ||| maccount ||| mcount ||| mfrom
+    
+-- Takes a list of 'Value' and a 'Maybe a' which is passed to 'maybe', converted using toJSON and finally appended to the list. If 'Nothing', 
+(|||) :: ToJSON a => [Value] -> Maybe a -> [Value]
+params ||| mparam = maybe [] (\param -> params Prelude.++ [toJSON param]) mparam
 
 -- TODO: listtransactions
 --       listaccounts

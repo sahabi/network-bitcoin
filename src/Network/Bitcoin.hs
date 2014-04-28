@@ -96,10 +96,10 @@ module Network.Bitcoin
     , ReceivedByAccount(..)
     , listReceivedByAccount
     , listReceivedByAccount'
-    -- , listTransactions
+    , listTransactions
     -- , listAccounts
     , SinceBlock(..)
-    , SinceBlockTransaction(..)
+    , BlockTransaction(..)
     , TransactionCategory(..)
     , listSinceBlock
     -- , getTransaction
