@@ -46,7 +46,7 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               , listTransactions'
                               , listAccounts
                               , SinceBlock(..)
-                              , BlockTransaction(..)
+                              , SimpleTransaction(..)
                               , TransactionCategory(..)
                               , listSinceBlock
                               , listSinceBlock'
@@ -414,7 +414,7 @@ listReceivedByAccount' auth minconf includeEmpty =
     
 
 data SinceBlock = 
-    SinceBlock { sbTransactions :: [BlockTransaction]
+    SinceBlock { strransactions :: Vector SimpleTransaction
                , sbLastBlockHash :: BlockHash
                }
     deriving ( Show, Read, Ord, Eq )
@@ -424,58 +424,77 @@ instance FromJSON SinceBlock where
                                       <*> o .:  "lastblock"
     parseJSON _ = mzero
 
-data BlockTransaction =
-    BlockTransaction {
-        -- | The receiving account of the transaction.
-          btReceivingAccount :: Account
-        -- | The receiving address of the transaction (Can be ommited, for
-        --   instance when a move is performed).
-        , btAddress :: Maybe Address
+-- | Data type for simple transactions. Rules involving 'trCategory' are 
+--   indications of the most probable value only when the transaction is 
+--   obtained from 'listTransactions' or 'listSinceBlock' are their associated
+--   methods.
+data SimpleTransaction =
+    SimpleTransaction {
+        -- | The account name associated with the transaction. The empty string 
+        --   is the default account.
+          trReceivingAccount :: Account
+        -- | The bitcoin address of the transaction. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , trAddress :: Maybe Address
         -- | The category of the transaction
-        , btCategory :: TransactionCategory
-        -- | The fees paid to process the transaction.
-        , btFee :: Maybe BTC
+        , trCategory :: TransactionCategory
+        -- | The fees paid to process the transaction. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , trFee :: Maybe BTC
         -- | The amount of bitcoins transferred.
-        , btAmountBitcoin :: BTC
-        -- | The number of confirmation of the transaction.
-        , btConfirmations :: Maybe Integer
-        -- | The hash of the block containing the transaction.
-        , btGenerated :: Maybe Bool
-        , btBlockHash :: Maybe BlockHash
-        , btBlockIndex :: Maybe Integer
-        , btBlockTime :: Maybe Double
-        , btTransactionId :: Maybe TransactionID
+        , trAmount :: BTC
+        -- | The number of confirmations of the transaction. Is 'Nothing' unless
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , trConfirmations :: Maybe Integer
+        -- | The hash of the block containing the transaction. Is 'Nothing' 
+        --   unless 'trCategory' is 'TCSend' or 'TCReceive'.
+        , trBlockHash :: Maybe BlockHash
+        -- | The index of the the block containing the transaction. Is 'Nothing'
+        --   unless  'trCategory' is 'TCSend' or 'TCReceive'.
+        , trBlockIndex :: Maybe Integer
+        -- | The block time in seconds since epoch (1 Jan 1970 GMT). Is 
+        --   'Nothing' unless 'trCategory' is 'TCSend' or 'TCReceive'.
+        , trBlockTime :: Maybe Integer
+        -- | The transaction id. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , trTransactionId :: Maybe TransactionID
         -- | The list of transaction ids containing the same data as the 
-        --   original transaction (See ID-malleation bug).
-        , btWalletConflicts :: Maybe (Vector TransactionID)
-        , btTime :: Integer
-        -- | Set when performing a move to indicate which other account was 
-        --   included in the transaction.
-        , btOtherAccount :: Maybe Account 
-        , btComment :: Maybe Text
-        , btTimeReceived :: Maybe Integer
+        --   original transaction (See ID-malleation bug). Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , trWalletConflicts :: Maybe (Vector TransactionID)
+        -- | The block time in seconds since epoch (1 Jan 1970 GMT).
+        , trTime :: Integer
+        , trTimeReceived :: Maybe Integer
+        -- | Is 'Nothing' unless a comment is associated with the transaction.
+        , trComment :: Maybe Text
+        -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
+        , trTo :: Maybe Text
+        -- | The account the funds came from (for receiving funds, positive 
+        --   amounts), or went to (for sending funds, negative amounts). Is 
+        --   'Nothing' unless 'trCategory' is 'TCMove'.
+        , trOtherAccount :: Maybe Account
         }
     deriving ( Show, Read, Ord, Eq )
 
-instance FromJSON BlockTransaction where
-    parseJSON (Object o) = BlockTransaction <$> o .:  "account"
-                                            <*> o .:? "address"
-                                            <*> o .:  "category"
-                                            <*> o .:? "fee"
-                                            <*> o .:  "amount"
-                                            <*> o .:? "confirmations"
-                                            <*> o .:? "generated"
-                                            <*> o .:? "blockhash"
-                                            <*> o .:? "blockindex"
-                                            <*> o .:? "blocktime"
-                                            <*> o .:? "txid"
-                                            <*> o .:? "walletconflicts"
-                                            <*> o .:  "time"
-                                            <*> o .:? "otheraccount"
-                                            <*> o .:? "comment"
-                                            <*> o .:? "timereceived"
+instance FromJSON SimpleTransaction where
+    parseJSON (Object o) = SimpleTransaction <$> o .:  "account"
+                                             <*> o .:? "address"
+                                             <*> o .:  "category"
+                                             <*> o .:? "fee"
+                                             <*> o .:  "amount"
+                                             <*> o .:? "confirmations"
+                                             <*> o .:? "blockhash"
+                                             <*> o .:? "blockindex"
+                                             <*> o .:? "blocktime"
+                                             <*> o .:? "txid"
+                                             <*> o .:? "walletconflicts"
+                                             <*> o .:  "time"
+                                             <*> o .:? "timereceived"
+                                             <*> o .:? "comment"
+                                             <*> o .:? "to"
+                                             <*> o .:? "otheraccount"
     parseJSON _ = mzero
-    
+
 data TransactionCategory = TCSend
                          | TCOrphan
                          | TCImmature
@@ -538,7 +557,7 @@ listTransactions :: Auth
                  -- ^ Limits the number of 'BlockTransaction' returned.
                  -> Int
                  -- ^ Number of most recent transactions to skip. 
-                 -> IO (Vector BlockTransaction)
+                 -> IO (Vector SimpleTransaction)
 listTransactions auth account count from =
     listTransactions' auth (Just account) (Just count) (Just from)
 
@@ -553,7 +572,7 @@ listTransactions' :: Auth
                   --   'Nothing' all transactions are returned.
                   -> Maybe Int
                   -- ^ Number of most recent transactions to skip. 
-                  -> IO (Vector BlockTransaction)
+                  -> IO (Vector SimpleTransaction)
 listTransactions' auth maccount mcount mfrom =
     callApi auth "listtransactions" [ 
           tj $ fromMaybe "*" maccount
