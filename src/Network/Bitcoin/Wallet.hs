@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wall #-}
 -- | An interface to bitcoind's available wallet-related RPC calls.
 --   The implementation of these functions can be found at
@@ -42,11 +43,13 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               , listReceivedByAccount
                               , listReceivedByAccount'
                               , listTransactions
-                              -- , listAccounts
+                              , listTransactions'
+                              , listAccounts
                               , SinceBlock(..)
                               , BlockTransaction(..)
                               , TransactionCategory(..)
                               , listSinceBlock
+                              , listSinceBlock'
                               -- , getTransaction
                               , backupWallet
                               , keyPoolRefill
@@ -60,6 +63,8 @@ module Network.Bitcoin.Wallet ( Auth(..)
 import Control.Applicative
 import Control.Monad
 import Data.Aeson as A
+import Data.Aeson.Types (Parser)
+import qualified Data.HashMap.Lazy as HM
 import Data.Maybe
 import Data.Vector as V
 import Network.Bitcoin.Internal
@@ -421,42 +426,54 @@ instance FromJSON SinceBlock where
 
 data BlockTransaction =
     BlockTransaction {
-        -- | The account associated with the receiving address.
+        -- | The receiving account of the transaction.
           btReceivingAccount :: Account
-        -- | The receiving address of the transaction.
-        , btAddress :: Address
+        -- | The receiving address of the transaction (Can be ommited, for
+        --   instance when a move is performed).
+        , btAddress :: Maybe Address
         -- | The category of the transaction
         , btCategory :: TransactionCategory
+        -- | The fees paid to process the transaction.
+        , btFee :: Maybe BTC
         -- | The amount of bitcoins transferred.
         , btAmountBitcoin :: BTC
         -- | The number of confirmation of the transaction.
-        , btConfirmations :: Integer
+        , btConfirmations :: Maybe Integer
         -- | The hash of the block containing the transaction.
-        , btBlockHash :: BlockHash
-        , btBlockIndex :: Integer
-        , btBlockTime :: Double
-        , btTransactionId :: TransactionID
+        , btGenerated :: Maybe Bool
+        , btBlockHash :: Maybe BlockHash
+        , btBlockIndex :: Maybe Integer
+        , btBlockTime :: Maybe Double
+        , btTransactionId :: Maybe TransactionID
         -- | The list of transaction ids containing the same data as the 
         --   original transaction (See ID-malleation bug).
-        , btWalletConflicts :: Vector TransactionID
+        , btWalletConflicts :: Maybe (Vector TransactionID)
         , btTime :: Integer
-        , btTimeReceived :: Integer
+        -- | Set when performing a move to indicate which other account was 
+        --   included in the transaction.
+        , btOtherAccount :: Maybe Account 
+        , btComment :: Maybe Text
+        , btTimeReceived :: Maybe Integer
         }
     deriving ( Show, Read, Ord, Eq )
 
 instance FromJSON BlockTransaction where
     parseJSON (Object o) = BlockTransaction <$> o .:  "account"
-                                            <*> o .:  "address"
+                                            <*> o .:? "address"
                                             <*> o .:  "category"
+                                            <*> o .:? "fee"
                                             <*> o .:  "amount"
-                                            <*> o .:  "confirmations"
-                                            <*> o .:  "blockhash"
-                                            <*> o .:  "blockindex"
-                                            <*> o .:  "blocktime"
-                                            <*> o .:  "txid"
-                                            <*> o .:  "walletconflicts"
+                                            <*> o .:? "confirmations"
+                                            <*> o .:? "generated"
+                                            <*> o .:? "blockhash"
+                                            <*> o .:? "blockindex"
+                                            <*> o .:? "blocktime"
+                                            <*> o .:? "txid"
+                                            <*> o .:? "walletconflicts"
                                             <*> o .:  "time"
-                                            <*> o .:  "timereceived"
+                                            <*> o .:? "otheraccount"
+                                            <*> o .:? "comment"
+                                            <*> o .:? "timereceived"
     parseJSON _ = mzero
     
 data TransactionCategory = TCSend
@@ -511,29 +528,60 @@ listSinceBlock' auth (Just blockHash) _ =
 listSinceBlock' auth _ _ =
     callApi auth "listsinceblock" []
     
-
+    
 -- | Returns transactions from the blockchain.
 listTransactions :: Auth
-                 -> Maybe Account
+                 -> Account
                  -- ^ Limits the 'BlockTransaction' returned to those from or to 
-                 --   the given 'Account'. If 'Nothing' all accounts are 
-                 --   included in the query.
-                 -> Maybe Int
-                 -- ^ Limits the number of 'BlockTransaction' returned. If 
-                 --   'Nothing' all transactions are returned.
-                 -> Maybe Int
+                 --   the given 'Account'.
+                 -> Int
+                 -- ^ Limits the number of 'BlockTransaction' returned.
+                 -> Int
                  -- ^ Number of most recent transactions to skip. 
                  -> IO (Vector BlockTransaction)
-listTransactions auth maccount mcount mfrom = do
-    callApi auth "listtransactions" $ [] ||| maccount ||| mcount ||| mfrom
-    
--- Takes a list of 'Value' and a 'Maybe a' which is passed to 'maybe', converted using toJSON and finally appended to the list. If 'Nothing', 
-(|||) :: ToJSON a => [Value] -> Maybe a -> [Value]
-params ||| mparam = maybe [] (\param -> params Prelude.++ [toJSON param]) mparam
+listTransactions auth account count from =
+    listTransactions' auth (Just account) (Just count) (Just from)
 
--- TODO: listtransactions
---       listaccounts
---       gettransaction
+-- | Returns transactions from the blockchain.
+listTransactions' :: Auth
+                  -> Maybe Account
+                  -- ^ Limits the 'BlockTransaction' returned to those from or to 
+                  --   the given 'Account'. If 'Nothing' all accounts are 
+                  --   included in the query.
+                  -> Maybe Int
+                  -- ^ Limits the number of 'BlockTransaction' returned. If 
+                  --   'Nothing' all transactions are returned.
+                  -> Maybe Int
+                  -- ^ Number of most recent transactions to skip. 
+                  -> IO (Vector BlockTransaction)
+listTransactions' auth maccount mcount mfrom =
+    callApi auth "listtransactions" [ 
+          tj $ fromMaybe "*" maccount
+        , tj $ fromMaybe 10 mcount
+        , tj $ fromMaybe 0 mfrom
+        ]
+
+
+instance FromJSON (Vector (Account, BTC)) where
+    parseJSON (Object o) = toAccountBalance $ V.fromList $ HM.toList o
+        where toAccountBalance :: Vector (Text, Value) -> Parser (Vector (Account, BTC))
+              toAccountBalance kps = V.mapM (magic) kps
+              magic :: (Text, Value) -> Parser (Account, BTC)
+              magic (acc, v) = do
+                  bal <- (parseJSON :: Value -> Parser BTC) v
+                  return (acc, bal)
+    parseJSON _ = mzero
+
+-- | List accounts and their current balance.
+listAccounts :: Auth
+             -> Maybe Int
+             -- ^ Minimum number of confirmations required before payments are 
+             --   included in the balance.
+             -> IO (Vector (Account, BTC))
+listAccounts auth mconf = 
+    callApi auth "listaccounts" [ tj $ fromMaybe 1 mconf ]
+
+-- TODO: gettransaction
 --
 --       These functions are just way too complicated for me to write.
 --       Patches welcome!

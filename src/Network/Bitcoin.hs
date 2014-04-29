@@ -97,11 +97,13 @@ module Network.Bitcoin
     , listReceivedByAccount
     , listReceivedByAccount'
     , listTransactions
-    -- , listAccounts
+    , listTransactions'
+    , listAccounts
     , SinceBlock(..)
     , BlockTransaction(..)
     , TransactionCategory(..)
     , listSinceBlock
+    , listSinceBlock'
     -- , getTransaction
     , backupWallet
     , keyPoolRefill
