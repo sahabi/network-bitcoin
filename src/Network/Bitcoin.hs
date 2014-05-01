@@ -104,7 +104,9 @@ module Network.Bitcoin
     , TransactionCategory(..)
     , listSinceBlock
     , listSinceBlock'
-    -- , getTransaction
+    , DetailedTransaction(..)
+    , DetailedTransactionDetails(..)
+    , getTransaction
     , backupWallet
     , keyPoolRefill
     , unlockWallet

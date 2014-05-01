@@ -50,7 +50,9 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               , TransactionCategory(..)
                               , listSinceBlock
                               , listSinceBlock'
-                              -- , getTransaction
+                              , DetailedTransaction(..)
+                              , DetailedTransactionDetails(..)
+                              , getTransaction
                               , backupWallet
                               , keyPoolRefill
                               , unlockWallet
@@ -67,8 +69,9 @@ import Data.Aeson.Types (Parser)
 import qualified Data.HashMap.Lazy as HM
 import Data.Maybe
 import Data.Vector as V
-import Network.Bitcoin.Internal
 import Network.Bitcoin.BlockChain (BlockHash)
+import Network.Bitcoin.Internal
+import Network.Bitcoin.RawTransaction (RawTransaction)
 
 -- | A plethora of information about a bitcoind instance.
 data BitcoindInfo =
@@ -424,10 +427,10 @@ instance FromJSON SinceBlock where
                                       <*> o .:  "lastblock"
     parseJSON _ = mzero
 
--- | Data type for simple transactions. Rules involving 'trCategory' are 
+-- | Data type for simple transactions. Rules involving 'Maybe' are 
 --   indications of the most probable value only when the transaction is 
 --   obtained from 'listTransactions' or 'listSinceBlock' are their associated
---   methods.
+--   methods. They are never enforced on this side.
 data SimpleTransaction =
     SimpleTransaction {
         -- | The account name associated with the transaction. The empty string 
@@ -600,10 +603,83 @@ listAccounts :: Auth
 listAccounts auth mconf = 
     callApi auth "listaccounts" [ tj $ fromMaybe 1 mconf ]
 
--- TODO: gettransaction
---
---       These functions are just way too complicated for me to write.
---       Patches welcome!
+
+-- | Data type for detailed transactions. Rules involving 'trCategory' are 
+--   indications of the most probable value only when the transaction is 
+--   obtained from 'listTransactions' or 'listSinceBlock' are their associated
+--   methods.
+data DetailedTransaction =
+    DetailedTransaction {
+        -- | The amount of bitcoins transferred.
+          dtrAmount :: BTC
+        -- | The fees paid to process the transaction. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtrFee :: Maybe BTC
+        -- | The number of confirmations of the transaction. Is 'Nothing' unless
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtrConfirmations :: Maybe Integer
+        -- | The transaction id. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtrTransactionId :: Maybe TransactionID
+        -- | The list of transaction ids containing the same data as the 
+        --   original transaction (See ID-malleation bug). Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtrWalletConflicts :: Maybe (Vector TransactionID)
+        -- | The block time in seconds since epoch (1 Jan 1970 GMT).
+        , dtrTime :: Integer
+        , dtrTimeReceived :: Maybe Integer
+        -- | Is 'Nothing' unless a comment is associated with the transaction.
+        , dtrComment :: Maybe Text
+        -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
+        , dtrTo :: Maybe Text
+        -- | The details of the transaction.
+        , dtrDetails :: Vector DetailedTransactionDetails
+        -- | Raw data for the transaction.
+        , dtrHex :: RawTransaction
+        }
+    deriving ( Show, Read, Ord, Eq )
+
+instance FromJSON DetailedTransaction where
+    parseJSON (Object o) = DetailedTransaction <$> o .:  "amount"
+                                               <*> o .:? "fee"
+                                               <*> o .:  "confirmations"
+                                               <*> o .:? "txid"
+                                               <*> o .:? "walletconflicts"
+                                               <*> o .:  "time"
+                                               <*> o .:? "timereceived"
+                                               <*> o .:? "comment"
+                                               <*> o .:? "to"
+                                               <*> o .:  "details"
+                                               <*> o .:  "hex"
+    parseJSON _ = mzero
+    
+data DetailedTransactionDetails =
+    DetailedTransactionDetails {
+        -- | The account name associated with the transaction. The empty string 
+        --   is the default account.
+          dtrdReceivingAccount :: Account
+        -- | The bitcoin address of the transaction.
+        , dtrdAddress :: Address
+        -- | The category of the transaction
+        , dtrdCategory :: TransactionCategory
+        -- | The amount of bitcoins transferred.
+        , dtrdAmount :: BTC
+        }
+    deriving ( Show, Read, Ord, Eq )
+    
+instance FromJSON DetailedTransactionDetails where
+    parseJSON (Object o) = DetailedTransactionDetails <$> o .:  "account"
+                                                      <*> o .:  "address"
+                                                      <*> o .:  "category"
+                                                      <*> o .:  "amount"
+    parseJSON _ = mzero
+
+getTransaction :: Auth 
+               -> TransactionID
+               -> IO (DetailedTransaction)
+getTransaction auth txid = 
+    callApi auth "gettransaction" [ tj txid ]
+
 
 -- | Safely copies wallet.dat to the given destination, which can be either a
 --   directory, or a path with filename.
