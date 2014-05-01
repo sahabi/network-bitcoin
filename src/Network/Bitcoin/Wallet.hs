@@ -435,47 +435,47 @@ data SimpleTransaction =
     SimpleTransaction {
         -- | The account name associated with the transaction. The empty string 
         --   is the default account.
-          trReceivingAccount :: Account
+          stReceivingAccount :: Account
         -- | The bitcoin address of the transaction. Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , trAddress :: Maybe Address
+        , stAddress :: Maybe Address
         -- | The category of the transaction
-        , trCategory :: TransactionCategory
+        , stCategory :: TransactionCategory
         -- | The fees paid to process the transaction. Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , trFee :: Maybe BTC
+        , stFee :: Maybe BTC
         -- | The amount of bitcoins transferred.
-        , trAmount :: BTC
+        , stAmount :: BTC
         -- | The number of confirmations of the transaction. Is 'Nothing' unless
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , trConfirmations :: Maybe Integer
+        , stConfirmations :: Maybe Integer
         -- | The hash of the block containing the transaction. Is 'Nothing' 
         --   unless 'trCategory' is 'TCSend' or 'TCReceive'.
-        , trBlockHash :: Maybe BlockHash
+        , stBlockHash :: Maybe BlockHash
         -- | The index of the the block containing the transaction. Is 'Nothing'
         --   unless  'trCategory' is 'TCSend' or 'TCReceive'.
-        , trBlockIndex :: Maybe Integer
+        , stBlockIndex :: Maybe Integer
         -- | The block time in seconds since epoch (1 Jan 1970 GMT). Is 
         --   'Nothing' unless 'trCategory' is 'TCSend' or 'TCReceive'.
-        , trBlockTime :: Maybe Integer
+        , stBlockTime :: Maybe Integer
         -- | The transaction id. Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , trTransactionId :: Maybe TransactionID
+        , stTransactionId :: Maybe TransactionID
         -- | The list of transaction ids containing the same data as the 
         --   original transaction (See ID-malleation bug). Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , trWalletConflicts :: Maybe (Vector TransactionID)
+        , stWalletConflicts :: Maybe (Vector TransactionID)
         -- | The block time in seconds since epoch (1 Jan 1970 GMT).
-        , trTime :: Integer
-        , trTimeReceived :: Maybe Integer
+        , stTime :: Integer
+        , stTimeReceived :: Maybe Integer
         -- | Is 'Nothing' unless a comment is associated with the transaction.
-        , trComment :: Maybe Text
+        , stComment :: Maybe Text
         -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
-        , trTo :: Maybe Text
+        , stTo :: Maybe Text
         -- | The account the funds came from (for receiving funds, positive 
         --   amounts), or went to (for sending funds, negative amounts). Is 
         --   'Nothing' unless 'trCategory' is 'TCMove'.
-        , trOtherAccount :: Maybe Account
+        , stOtherAccount :: Maybe Account
         }
     deriving ( Show, Read, Ord, Eq )
 
@@ -611,31 +611,31 @@ listAccounts auth mconf =
 data DetailedTransaction =
     DetailedTransaction {
         -- | The amount of bitcoins transferred.
-          dtrAmount :: BTC
+          dtAmount :: BTC
         -- | The fees paid to process the transaction. Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , dtrFee :: Maybe BTC
+        , dtFee :: Maybe BTC
         -- | The number of confirmations of the transaction. Is 'Nothing' unless
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , dtrConfirmations :: Maybe Integer
+        , dtConfirmations :: Maybe Integer
         -- | The transaction id. Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , dtrTransactionId :: Maybe TransactionID
+        , dtTransactionId :: Maybe TransactionID
         -- | The list of transaction ids containing the same data as the 
         --   original transaction (See ID-malleation bug). Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
-        , dtrWalletConflicts :: Maybe (Vector TransactionID)
+        , dtWalletConflicts :: Maybe (Vector TransactionID)
         -- | The block time in seconds since epoch (1 Jan 1970 GMT).
-        , dtrTime :: Integer
-        , dtrTimeReceived :: Maybe Integer
+        , dtTime :: Integer
+        , dtTimeReceived :: Maybe Integer
         -- | Is 'Nothing' unless a comment is associated with the transaction.
-        , dtrComment :: Maybe Text
+        , dtComment :: Maybe Text
         -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
-        , dtrTo :: Maybe Text
+        , dtTo :: Maybe Text
         -- | The details of the transaction.
-        , dtrDetails :: Vector DetailedTransactionDetails
+        , dtDetails :: Vector DetailedTransactionDetails
         -- | Raw data for the transaction.
-        , dtrHex :: RawTransaction
+        , dtHex :: RawTransaction
         }
     deriving ( Show, Read, Ord, Eq )
 
@@ -657,13 +657,13 @@ data DetailedTransactionDetails =
     DetailedTransactionDetails {
         -- | The account name associated with the transaction. The empty string 
         --   is the default account.
-          dtrdReceivingAccount :: Account
+          dtdReceivingAccount :: Account
         -- | The bitcoin address of the transaction.
-        , dtrdAddress :: Address
+        , dtdAddress :: Address
         -- | The category of the transaction
-        , dtrdCategory :: TransactionCategory
+        , dtdCategory :: TransactionCategory
         -- | The amount of bitcoins transferred.
-        , dtrdAmount :: BTC
+        , dtdAmount :: BTC
         }
     deriving ( Show, Read, Ord, Eq )
     
