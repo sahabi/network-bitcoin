@@ -65,7 +65,6 @@ module Network.Bitcoin.Wallet ( Auth(..)
 import Control.Applicative
 import Control.Monad
 import Data.Aeson as A
-import Data.Aeson.Types (Parser)
 import qualified Data.HashMap.Lazy as HM
 import Data.Maybe
 import Data.Vector as V
@@ -584,22 +583,12 @@ listTransactions' auth maccount mcount mfrom =
         ]
 
 
-instance FromJSON (Vector (Account, BTC)) where
-    parseJSON (Object o) = toAccountBalance $ V.fromList $ HM.toList o
-        where toAccountBalance :: Vector (Text, Value) -> Parser (Vector (Account, BTC))
-              toAccountBalance kps = V.mapM (magic) kps
-              magic :: (Text, Value) -> Parser (Account, BTC)
-              magic (acc, v) = do
-                  bal <- (parseJSON :: Value -> Parser BTC) v
-                  return (acc, bal)
-    parseJSON _ = mzero
-
 -- | List accounts and their current balance.
 listAccounts :: Auth
              -> Maybe Int
              -- ^ Minimum number of confirmations required before payments are 
              --   included in the balance.
-             -> IO (Vector (Account, BTC))
+             -> IO (HM.HashMap Account BTC)
 listAccounts auth mconf = 
     callApi auth "listaccounts" [ tj $ fromMaybe 1 mconf ]
 
