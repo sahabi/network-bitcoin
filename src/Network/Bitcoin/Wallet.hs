@@ -542,13 +542,9 @@ listSinceBlock' :: Auth
                 --   not in any way affect which transactions are returned 
                 --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
                 -> IO (SinceBlock)
-listSinceBlock' auth (Just blockHash) (Just minConf) =
-    callApi auth "listsinceblock" [ tj blockHash, tj minConf ]
-listSinceBlock' auth (Just blockHash) _ =
-    callApi auth "listsinceblock" [ tj blockHash ]
-listSinceBlock' auth _ _ =
-    callApi auth "listsinceblock" []
-    
+listSinceBlock' auth mblockHash mminConf =
+    callApi auth "listsinceblock" $ tja mblockHash ||| mminConf
+        
     
 -- | Returns transactions from the blockchain.
 listTransactions :: Auth
@@ -576,11 +572,7 @@ listTransactions' :: Auth
                   -- ^ Number of most recent transactions to skip. 
                   -> IO (Vector SimpleTransaction)
 listTransactions' auth maccount mcount mfrom =
-    callApi auth "listtransactions" [ 
-          tj $ fromMaybe "*" maccount
-        , tj $ fromMaybe 10 mcount
-        , tj $ fromMaybe 0 mfrom
-        ]
+    callApi auth "listtransactions" $ [ tjm "*" maccount ] ||| mcount ||| mfrom
 
 
 -- | List accounts and their current balance.
@@ -590,7 +582,7 @@ listAccounts :: Auth
              --   included in the balance.
              -> IO (HM.HashMap Account BTC)
 listAccounts auth mconf = 
-    callApi auth "listaccounts" [ tj $ fromMaybe 1 mconf ]
+    callApi auth "listaccounts" [ tjm 1 mconf ]
 
 
 -- | Data type for detailed transactions. Rules involving 'trCategory' are 

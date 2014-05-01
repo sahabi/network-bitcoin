@@ -18,6 +18,9 @@ module Network.Bitcoin.Internal ( module Network.Bitcoin.Types
                                 , callApi'
                                 , Nil(..)
                                 , tj
+                                , tjm
+                                , tja
+                                , (|||)
                                 , AddrAddress(..)
                                 , BitcoinRpcResponse(..)
                                 ) where
@@ -144,6 +147,21 @@ httpRequest urlString jsonBody =
 tj :: ToJSON a => a -> Value
 tj = toJSON
 {-# INLINE tj #-}
+
+tjm :: ToJSON a => a -> Maybe a -> Value
+tjm d m = tj $ fromMaybe d m
+{-# INLINE tjm #-}
+
+tja :: ToJSON a => Maybe a -> [Value]
+tja m = case m of
+    Just v -> [ tj v ]
+    _ -> []
+{-# INLINE tja #-}
+
+(|||) :: ToJSON a => [Value] -> Maybe a -> [Value]
+vs ||| m = vs ++ tja m
+{-# INLINE (|||) #-}
+
 
 -- | A wrapper for a vector of address:amount pairs. The RPC expects that as
 --   an object of "address":"amount" pairs, instead of a vector. So that's what
