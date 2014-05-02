@@ -65,8 +65,11 @@ module Network.Bitcoin.Wallet ( Auth(..)
 import Control.Applicative
 import Control.Monad
 import Data.Aeson as A
+import Data.Aeson.Types
 import qualified Data.HashMap.Lazy as HM
 import Data.Maybe
+import Data.Text
+import Data.Time.Clock.POSIX
 import Data.Vector as V
 import Network.Bitcoin.BlockChain (BlockHash)
 import Network.Bitcoin.Internal
@@ -419,7 +422,7 @@ data SinceBlock =
     SinceBlock { strransactions :: Vector SimpleTransaction
                , sbLastBlockHash :: BlockHash
                }
-    deriving ( Show, Read, Ord, Eq )
+    deriving ( Show, Ord, Eq )
     
 instance FromJSON SinceBlock where
     parseJSON (Object o) = SinceBlock <$> o .:  "transactions"
@@ -456,7 +459,7 @@ data SimpleTransaction =
         , stBlockIndex :: Maybe Integer
         -- | The block time in seconds since epoch (1 Jan 1970 GMT). Is 
         --   'Nothing' unless 'trCategory' is 'TCSend' or 'TCReceive'.
-        , stBlockTime :: Maybe Integer
+        , stBlockTime :: Maybe POSIXTime
         -- | The transaction id. Is 'Nothing' unless 
         --   'trCategory' is 'TCSend' or 'TCReceive'.
         , stTransactionId :: Maybe TransactionID
@@ -465,8 +468,8 @@ data SimpleTransaction =
         --   'trCategory' is 'TCSend' or 'TCReceive'.
         , stWalletConflicts :: Maybe (Vector TransactionID)
         -- | The block time in seconds since epoch (1 Jan 1970 GMT).
-        , stTime :: Integer
-        , stTimeReceived :: Maybe Integer
+        , stTime :: POSIXTime
+        , stTimeReceived :: Maybe POSIXTime
         -- | Is 'Nothing' unless a comment is associated with the transaction.
         , stComment :: Maybe Text
         -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
@@ -476,7 +479,14 @@ data SimpleTransaction =
         --   'Nothing' unless 'trCategory' is 'TCMove'.
         , stOtherAccount :: Maybe Account
         }
-    deriving ( Show, Read, Ord, Eq )
+    deriving ( Show, Ord, Eq )
+
+applyParserMaybe :: Parser (Maybe a) -> (a -> b) -> Parser (Maybe b)
+applyParserMaybe p f = do
+    mv <- p
+    case mv of
+        Just v -> return $ Just $ f v
+        _ -> return Nothing
 
 instance FromJSON SimpleTransaction where
     parseJSON (Object o) = SimpleTransaction <$> o .:  "account"
@@ -487,11 +497,11 @@ instance FromJSON SimpleTransaction where
                                              <*> o .:? "confirmations"
                                              <*> o .:? "blockhash"
                                              <*> o .:? "blockindex"
-                                             <*> o .:? "blocktime"
+                                             <*> (applyParserMaybe (o .:? "blocktime") (fromIntegral :: Integer -> POSIXTime))
                                              <*> o .:? "txid"
                                              <*> o .:? "walletconflicts"
-                                             <*> o .:  "time"
-                                             <*> o .:? "timereceived"
+                                             <*> ((fromIntegral :: Integer -> POSIXTime) <$>  o .: "time")
+                                             <*> (applyParserMaybe (o .:? "timereceived") (fromIntegral :: Integer -> POSIXTime))
                                              <*> o .:? "comment"
                                              <*> o .:? "to"
                                              <*> o .:? "otheraccount"
@@ -556,8 +566,8 @@ listTransactions :: Auth
                  -> Int
                  -- ^ Number of most recent transactions to skip. 
                  -> IO (Vector SimpleTransaction)
-listTransactions auth account count from =
-    listTransactions' auth (Just account) (Just count) (Just from)
+listTransactions auth account size from =
+    listTransactions' auth (Just account) (Just size) (Just from)
 
 -- | Returns transactions from the blockchain.
 listTransactions' :: Auth
@@ -607,8 +617,8 @@ data DetailedTransaction =
         --   'trCategory' is 'TCSend' or 'TCReceive'.
         , dtWalletConflicts :: Maybe (Vector TransactionID)
         -- | The block time in seconds since epoch (1 Jan 1970 GMT).
-        , dtTime :: Integer
-        , dtTimeReceived :: Maybe Integer
+        , dtTime :: POSIXTime
+        , dtTimeReceived :: Maybe POSIXTime
         -- | Is 'Nothing' unless a comment is associated with the transaction.
         , dtComment :: Maybe Text
         -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
@@ -618,7 +628,7 @@ data DetailedTransaction =
         -- | Raw data for the transaction.
         , dtHex :: RawTransaction
         }
-    deriving ( Show, Read, Ord, Eq )
+    deriving ( Show, Ord, Eq )
 
 instance FromJSON DetailedTransaction where
     parseJSON (Object o) = DetailedTransaction <$> o .:  "amount"
@@ -626,8 +636,8 @@ instance FromJSON DetailedTransaction where
                                                <*> o .:  "confirmations"
                                                <*> o .:? "txid"
                                                <*> o .:? "walletconflicts"
-                                               <*> o .:  "time"
-                                               <*> o .:? "timereceived"
+                                               <*> ((fromIntegral :: Integer -> POSIXTime) <$> (o .: "time"))
+                                               <*> (applyParserMaybe (o .:? "time") (fromIntegral :: Integer -> POSIXTime))
                                                <*> o .:? "comment"
                                                <*> o .:? "to"
                                                <*> o .:  "details"
@@ -646,7 +656,7 @@ data DetailedTransactionDetails =
         -- | The amount of bitcoins transferred.
         , dtdAmount :: BTC
         }
-    deriving ( Show, Read, Ord, Eq )
+    deriving ( Show, Ord, Eq )
     
 instance FromJSON DetailedTransactionDetails where
     parseJSON (Object o) = DetailedTransactionDetails <$> o .:  "account"
