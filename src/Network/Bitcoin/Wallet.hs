@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wall #-}
 -- | An interface to bitcoind's available wallet-related RPC calls.
 --   The implementation of these functions can be found at
@@ -65,12 +64,11 @@ module Network.Bitcoin.Wallet ( Auth(..)
 import Control.Applicative
 import Control.Monad
 import Data.Aeson as A
-import Data.Aeson.Types
 import qualified Data.HashMap.Lazy as HM
 import Data.Maybe
 import Data.Text
 import Data.Time.Clock.POSIX
-import Data.Vector as V
+import Data.Vector as V hiding ((++))
 import Network.Bitcoin.BlockChain (BlockHash)
 import Network.Bitcoin.Internal
 import Network.Bitcoin.RawTransaction (RawTransaction)
@@ -481,30 +479,25 @@ data SimpleTransaction =
         }
     deriving ( Show, Ord, Eq )
 
-applyParserMaybe :: Parser (Maybe a) -> (a -> b) -> Parser (Maybe b)
-applyParserMaybe p f = do
-    mv <- p
-    case mv of
-        Just v -> return $ Just $ f v
-        _ -> return Nothing
-
 instance FromJSON SimpleTransaction where
-    parseJSON (Object o) = SimpleTransaction <$> o .:  "account"
-                                             <*> o .:? "address"
-                                             <*> o .:  "category"
-                                             <*> o .:? "fee"
-                                             <*> o .:  "amount"
-                                             <*> o .:? "confirmations"
-                                             <*> o .:? "blockhash"
-                                             <*> o .:? "blockindex"
-                                             <*> (applyParserMaybe (o .:? "blocktime") (fromIntegral :: Integer -> POSIXTime))
-                                             <*> o .:? "txid"
-                                             <*> o .:? "walletconflicts"
-                                             <*> ((fromIntegral :: Integer -> POSIXTime) <$>  o .: "time")
-                                             <*> (applyParserMaybe (o .:? "timereceived") (fromIntegral :: Integer -> POSIXTime))
-                                             <*> o .:? "comment"
-                                             <*> o .:? "to"
-                                             <*> o .:? "otheraccount"
+    parseJSON (Object o) =
+      SimpleTransaction
+        <$> o .:  "account"
+        <*> o .:? "address"
+        <*> o .:  "category"
+        <*> o .:? "fee"
+        <*> o .:  "amount"
+        <*> o .:? "confirmations"
+        <*> o .:? "blockhash"
+        <*> o .:? "blockindex"
+        <*> (fmap fromInteger <$> o .:? "blocktime")
+        <*> o .:? "txid"
+        <*> o .:? "walletconflicts"
+        <*> (fromInteger <$> o .: "time")
+        <*> (fmap fromInteger <$> o .:? "timereceived")
+        <*> o .:? "comment"
+        <*> o .:? "to"
+        <*> o .:? "otheraccount"
     parseJSON _ = mzero
 
 data TransactionCategory = TCSend
@@ -553,7 +546,7 @@ listSinceBlock' :: Auth
                 --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
                 -> IO (SinceBlock)
 listSinceBlock' auth mblockHash mminConf =
-    callApi auth "listsinceblock" $ tja mblockHash ||| mminConf
+    callApi auth "listsinceblock" $ tja mblockHash ++ tja mminConf
         
     
 -- | Returns transactions from the blockchain.
@@ -582,7 +575,7 @@ listTransactions' :: Auth
                   -- ^ Number of most recent transactions to skip. 
                   -> IO (Vector SimpleTransaction)
 listTransactions' auth maccount mcount mfrom =
-    callApi auth "listtransactions" $ [ tjm "*" maccount ] ||| mcount ||| mfrom
+    callApi auth "listtransactions" $ [ tjm "*" maccount ] ++ tja mcount ++ tja mfrom
 
 
 -- | List accounts and their current balance.
@@ -593,7 +586,6 @@ listAccounts :: Auth
              -> IO (HM.HashMap Account BTC)
 listAccounts auth mconf = 
     callApi auth "listaccounts" [ tjm 1 mconf ]
-
 
 -- | Data type for detailed transactions. Rules involving 'trCategory' are 
 --   indications of the most probable value only when the transaction is 
@@ -631,17 +623,19 @@ data DetailedTransaction =
     deriving ( Show, Ord, Eq )
 
 instance FromJSON DetailedTransaction where
-    parseJSON (Object o) = DetailedTransaction <$> o .:  "amount"
-                                               <*> o .:? "fee"
-                                               <*> o .:  "confirmations"
-                                               <*> o .:? "txid"
-                                               <*> o .:? "walletconflicts"
-                                               <*> ((fromIntegral :: Integer -> POSIXTime) <$> (o .: "time"))
-                                               <*> (applyParserMaybe (o .:? "time") (fromIntegral :: Integer -> POSIXTime))
-                                               <*> o .:? "comment"
-                                               <*> o .:? "to"
-                                               <*> o .:  "details"
-                                               <*> o .:  "hex"
+    parseJSON (Object o) =
+      DetailedTransaction
+        <$> o .:  "amount"
+        <*> o .:? "fee"
+        <*> o .:  "confirmations"
+        <*> o .:? "txid"
+        <*> o .:? "walletconflicts"
+        <*> (fromInteger <$> o .: "time")
+        <*> (fmap fromInteger <$> o .:? "timereceived")
+        <*> o .:? "comment"
+        <*> o .:? "to"
+        <*> o .:  "details"
+        <*> o .:  "hex"
     parseJSON _ = mzero
     
 data DetailedTransactionDetails =
