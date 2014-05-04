@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wall #-}
 -- | An interface to bitcoind's available wallet-related RPC calls.
 --   The implementation of these functions can be found at
@@ -41,13 +42,17 @@ module Network.Bitcoin.Wallet ( Auth(..)
                               , ReceivedByAccount(..)
                               , listReceivedByAccount
                               , listReceivedByAccount'
-                              -- , listTransactions
-                              -- , listAccounts
+                              , listTransactions
+                              , listTransactions'
+                              , listAccounts
                               , SinceBlock(..)
-                              , SinceBlockTransaction(..)
+                              , SimpleTransaction(..)
                               , TransactionCategory(..)
                               , listSinceBlock
-                              -- , getTransaction
+                              , listSinceBlock'
+                              , DetailedTransaction(..)
+                              , DetailedTransactionDetails(..)
+                              , getTransaction
                               , backupWallet
                               , keyPoolRefill
                               , unlockWallet
@@ -60,10 +65,15 @@ module Network.Bitcoin.Wallet ( Auth(..)
 import Control.Applicative
 import Control.Monad
 import Data.Aeson as A
+import Data.Aeson.Types
+import qualified Data.HashMap.Lazy as HM
 import Data.Maybe
+import Data.Text
+import Data.Time.Clock.POSIX
 import Data.Vector as V
-import Network.Bitcoin.Internal
 import Network.Bitcoin.BlockChain (BlockHash)
+import Network.Bitcoin.Internal
+import Network.Bitcoin.RawTransaction (RawTransaction)
 
 -- | A plethora of information about a bitcoind instance.
 data BitcoindInfo =
@@ -409,55 +419,94 @@ listReceivedByAccount' auth minconf includeEmpty =
     
 
 data SinceBlock = 
-    SinceBlock { transactions :: Vector SinceBlockTransaction
-               , lastBlockHash :: BlockHash
+    SinceBlock { strransactions :: Vector SimpleTransaction
+               , sbLastBlockHash :: BlockHash
                }
-    deriving ( Show, Read, Ord, Eq )
+    deriving ( Show, Ord, Eq )
     
 instance FromJSON SinceBlock where
     parseJSON (Object o) = SinceBlock <$> o .:  "transactions"
                                       <*> o .:  "lastblock"
     parseJSON _ = mzero
 
-data SinceBlockTransaction =
-    SinceBlockTransaction {
-        -- | The account associated with the receiving address.
-          sbtReceivingAccount :: Account
-        -- | The receiving address of the transaction.
-        , sbtAddress :: Address
-        -- | The category of the transaction (As of 0.8.6 this field can be send,orphan,immature,generate,receive,move).
-        , sbtCategory :: TransactionCategory
+-- | Data type for simple transactions. Rules involving 'Maybe' are 
+--   indications of the most probable value only when the transaction is 
+--   obtained from 'listTransactions' or 'listSinceBlock' are their associated
+--   methods. They are never enforced on this side.
+data SimpleTransaction =
+    SimpleTransaction {
+        -- | The account name associated with the transaction. The empty string 
+        --   is the default account.
+          stReceivingAccount :: Account
+        -- | The bitcoin address of the transaction. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , stAddress :: Maybe Address
+        -- | The category of the transaction
+        , stCategory :: TransactionCategory
+        -- | The fees paid to process the transaction. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , stFee :: Maybe BTC
         -- | The amount of bitcoins transferred.
-        , sbtAmountBitcoin :: BTC
-        -- | The number of confirmation of the transaction.
-        , sbtConfirmations :: Integer
-        -- | The hash of the block containing the transaction.
-        , sbtBlockHash :: BlockHash
-        , sbtBlockIndex :: Integer
-        , sbtBlockTime :: Double
-        , sbtTransactionId :: TransactionID
-        -- | The list of transaction ids containing the same data as the original transaction (See ID-malleation bug).
-        , sbtWalletConflicts :: Vector TransactionID
-        , sbtTime :: Integer
-        , sbtTimeReceived :: Integer
+        , stAmount :: BTC
+        -- | The number of confirmations of the transaction. Is 'Nothing' unless
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , stConfirmations :: Maybe Integer
+        -- | The hash of the block containing the transaction. Is 'Nothing' 
+        --   unless 'trCategory' is 'TCSend' or 'TCReceive'.
+        , stBlockHash :: Maybe BlockHash
+        -- | The index of the the block containing the transaction. Is 'Nothing'
+        --   unless  'trCategory' is 'TCSend' or 'TCReceive'.
+        , stBlockIndex :: Maybe Integer
+        -- | The block time in seconds since epoch (1 Jan 1970 GMT). Is 
+        --   'Nothing' unless 'trCategory' is 'TCSend' or 'TCReceive'.
+        , stBlockTime :: Maybe POSIXTime
+        -- | The transaction id. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , stTransactionId :: Maybe TransactionID
+        -- | The list of transaction ids containing the same data as the 
+        --   original transaction (See ID-malleation bug). Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , stWalletConflicts :: Maybe (Vector TransactionID)
+        -- | The block time in seconds since epoch (1 Jan 1970 GMT).
+        , stTime :: POSIXTime
+        , stTimeReceived :: Maybe POSIXTime
+        -- | Is 'Nothing' unless a comment is associated with the transaction.
+        , stComment :: Maybe Text
+        -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
+        , stTo :: Maybe Text
+        -- | The account the funds came from (for receiving funds, positive 
+        --   amounts), or went to (for sending funds, negative amounts). Is 
+        --   'Nothing' unless 'trCategory' is 'TCMove'.
+        , stOtherAccount :: Maybe Account
         }
-    deriving ( Show, Read, Ord, Eq )
+    deriving ( Show, Ord, Eq )
 
-instance FromJSON SinceBlockTransaction where
-    parseJSON (Object o) = SinceBlockTransaction <$> o .:  "account"
-                                                 <*> o .:  "address"
-                                                 <*> o .:  "category"
-                                                 <*> o .:  "amount"
-                                                 <*> o .:  "confirmations"
-                                                 <*> o .:  "blockhash"
-                                                 <*> o .:  "blockindex"
-                                                 <*> o .:  "blocktime"
-                                                 <*> o .:  "txid"
-                                                 <*> o .:  "walletconflicts"
-                                                 <*> o .:  "time"
-                                                 <*> o .:  "timereceived"
+applyParserMaybe :: Parser (Maybe a) -> (a -> b) -> Parser (Maybe b)
+applyParserMaybe p f = do
+    mv <- p
+    case mv of
+        Just v -> return $ Just $ f v
+        _ -> return Nothing
+
+instance FromJSON SimpleTransaction where
+    parseJSON (Object o) = SimpleTransaction <$> o .:  "account"
+                                             <*> o .:? "address"
+                                             <*> o .:  "category"
+                                             <*> o .:? "fee"
+                                             <*> o .:  "amount"
+                                             <*> o .:? "confirmations"
+                                             <*> o .:? "blockhash"
+                                             <*> o .:? "blockindex"
+                                             <*> (applyParserMaybe (o .:? "blocktime") (fromIntegral :: Integer -> POSIXTime))
+                                             <*> o .:? "txid"
+                                             <*> o .:? "walletconflicts"
+                                             <*> ((fromIntegral :: Integer -> POSIXTime) <$>  o .: "time")
+                                             <*> (applyParserMaybe (o .:? "timereceived") (fromIntegral :: Integer -> POSIXTime))
+                                             <*> o .:? "comment"
+                                             <*> o .:? "to"
+                                             <*> o .:? "otheraccount"
     parseJSON _ = mzero
-    
+
 data TransactionCategory = TCSend
                          | TCOrphan
                          | TCImmature
@@ -478,24 +527,150 @@ instance FromJSON TransactionCategory where
               createTC "move"     = TCMove
               createTC uc         = TCErrorUnexpected uc
     parseJSON _ = mzero
-
+    
+-- | Gets all transactions in blocks since the given block.
 listSinceBlock :: Auth
                -> BlockHash
+               -- ^ The hash of the first block to list.
                -> Maybe Int
                -- ^ The minimum number of confirmations before a
-               --   transaction counts toward the total received.
+               --   transaction can be returned as 'sbLastBlockHash'. This does
+               --   not in any way affect which transactions are returned 
+               --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
                -> IO (SinceBlock)
-listSinceBlock auth blockHash (Just minConf) =
-    callApi auth "listsinceblock" [ tj blockHash, tj minConf ]
-listSinceBlock auth blockHash _ =
-    callApi auth "listsinceblock" [ tj blockHash ]
+listSinceBlock auth blockHash conf =
+    listSinceBlock' auth (Just blockHash) conf
 
--- TODO: listtransactions
---       listaccounts
---       gettransaction
---
---       These functions are just way too complicated for me to write.
---       Patches welcome!
+-- | Gets all transactions in blocks since the given block, or all 
+--   transactions if ommited.
+listSinceBlock' :: Auth
+                -> Maybe BlockHash
+                -- ^ The hash of the first block to list.
+                -> Maybe Int
+                -- ^ The minimum number of confirmations before a
+                --   transaction can be returned as 'sbLastBlockHash'. This does
+                --   not in any way affect which transactions are returned 
+                --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
+                -> IO (SinceBlock)
+listSinceBlock' auth mblockHash mminConf =
+    callApi auth "listsinceblock" $ tja mblockHash ||| mminConf
+        
+    
+-- | Returns transactions from the blockchain.
+listTransactions :: Auth
+                 -> Account
+                 -- ^ Limits the 'BlockTransaction' returned to those from or to 
+                 --   the given 'Account'.
+                 -> Int
+                 -- ^ Limits the number of 'BlockTransaction' returned.
+                 -> Int
+                 -- ^ Number of most recent transactions to skip. 
+                 -> IO (Vector SimpleTransaction)
+listTransactions auth account size from =
+    listTransactions' auth (Just account) (Just size) (Just from)
+
+-- | Returns transactions from the blockchain.
+listTransactions' :: Auth
+                  -> Maybe Account
+                  -- ^ Limits the 'BlockTransaction' returned to those from or to 
+                  --   the given 'Account'. If 'Nothing' all accounts are 
+                  --   included in the query.
+                  -> Maybe Int
+                  -- ^ Limits the number of 'BlockTransaction' returned. If 
+                  --   'Nothing' all transactions are returned.
+                  -> Maybe Int
+                  -- ^ Number of most recent transactions to skip. 
+                  -> IO (Vector SimpleTransaction)
+listTransactions' auth maccount mcount mfrom =
+    callApi auth "listtransactions" $ [ tjm "*" maccount ] ||| mcount ||| mfrom
+
+
+-- | List accounts and their current balance.
+listAccounts :: Auth
+             -> Maybe Int
+             -- ^ Minimum number of confirmations required before payments are 
+             --   included in the balance.
+             -> IO (HM.HashMap Account BTC)
+listAccounts auth mconf = 
+    callApi auth "listaccounts" [ tjm 1 mconf ]
+
+
+-- | Data type for detailed transactions. Rules involving 'trCategory' are 
+--   indications of the most probable value only when the transaction is 
+--   obtained from 'listTransactions' or 'listSinceBlock' are their associated
+--   methods.
+data DetailedTransaction =
+    DetailedTransaction {
+        -- | The amount of bitcoins transferred.
+          dtAmount :: BTC
+        -- | The fees paid to process the transaction. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtFee :: Maybe BTC
+        -- | The number of confirmations of the transaction. Is 'Nothing' unless
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtConfirmations :: Maybe Integer
+        -- | The transaction id. Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtTransactionId :: Maybe TransactionID
+        -- | The list of transaction ids containing the same data as the 
+        --   original transaction (See ID-malleation bug). Is 'Nothing' unless 
+        --   'trCategory' is 'TCSend' or 'TCReceive'.
+        , dtWalletConflicts :: Maybe (Vector TransactionID)
+        -- | The block time in seconds since epoch (1 Jan 1970 GMT).
+        , dtTime :: POSIXTime
+        , dtTimeReceived :: Maybe POSIXTime
+        -- | Is 'Nothing' unless a comment is associated with the transaction.
+        , dtComment :: Maybe Text
+        -- | Is 'Nothing' unless a \"to\" is associated with the transaction.
+        , dtTo :: Maybe Text
+        -- | The details of the transaction.
+        , dtDetails :: Vector DetailedTransactionDetails
+        -- | Raw data for the transaction.
+        , dtHex :: RawTransaction
+        }
+    deriving ( Show, Ord, Eq )
+
+instance FromJSON DetailedTransaction where
+    parseJSON (Object o) = DetailedTransaction <$> o .:  "amount"
+                                               <*> o .:? "fee"
+                                               <*> o .:  "confirmations"
+                                               <*> o .:? "txid"
+                                               <*> o .:? "walletconflicts"
+                                               <*> ((fromIntegral :: Integer -> POSIXTime) <$> (o .: "time"))
+                                               <*> (applyParserMaybe (o .:? "time") (fromIntegral :: Integer -> POSIXTime))
+                                               <*> o .:? "comment"
+                                               <*> o .:? "to"
+                                               <*> o .:  "details"
+                                               <*> o .:  "hex"
+    parseJSON _ = mzero
+    
+data DetailedTransactionDetails =
+    DetailedTransactionDetails {
+        -- | The account name associated with the transaction. The empty string 
+        --   is the default account.
+          dtdReceivingAccount :: Account
+        -- | The bitcoin address of the transaction.
+        , dtdAddress :: Address
+        -- | The category of the transaction
+        , dtdCategory :: TransactionCategory
+        -- | The amount of bitcoins transferred.
+        , dtdAmount :: BTC
+        }
+    deriving ( Show, Ord, Eq )
+    
+instance FromJSON DetailedTransactionDetails where
+    parseJSON (Object o) = DetailedTransactionDetails <$> o .:  "account"
+                                                      <*> o .:  "address"
+                                                      <*> o .:  "category"
+                                                      <*> o .:  "amount"
+    parseJSON _ = mzero
+
+getTransaction :: Auth 
+               -> TransactionID
+               -> IO (DetailedTransaction)
+getTransaction auth txid = 
+    callApi auth "gettransaction" [ tj txid ]
+
 
 -- | Safely copies wallet.dat to the given destination, which can be either a
 --   directory, or a path with filename.
