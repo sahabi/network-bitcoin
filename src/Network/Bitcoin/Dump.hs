@@ -17,18 +17,18 @@ import Network.Bitcoin.Internal
 type PrivateKey = Text
 
 -- | Adds a private key (as returned by dumpprivkey) to your wallet.
-importPrivateKey :: Auth
+importPrivateKey :: Client
                  -> PrivateKey
                  -> Maybe Account
                  -- ^ An optional label for the key.
                  -> IO ()
-importPrivateKey auth pk Nothing =
-    unNil <$> callApi auth "importprivkey" [ tj pk ]
-importPrivateKey auth pk (Just label) =
-    unNil <$> callApi auth "importprivkey" [ tj pk, tj label ]
+importPrivateKey client pk Nothing =
+    unNil <$> callApi client "importprivkey" [ tj pk ]
+importPrivateKey client pk (Just label) =
+    unNil <$> callApi client "importprivkey" [ tj pk, tj label ]
 
 -- | Reveals the private key corresponding to the given address.
-dumpPrivateKey :: Auth
+dumpPrivateKey :: Client
                -> Address
                -> IO PrivateKey
-dumpPrivateKey auth addr = callApi auth "dumpprivkey" [ tj addr ]
+dumpPrivateKey client addr = callApi client "dumpprivkey" [ tj addr ]

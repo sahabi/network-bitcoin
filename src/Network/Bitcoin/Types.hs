@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wall #-}
 -- | Contains the common types used through bitcoin RPC calls, that aren't
 --   specific to a single submodule.
-module Network.Bitcoin.Types ( Auth(..)
+module Network.Bitcoin.Types ( Client
                              , BitcoinException(..)
                              , HexString
                              , TransactionID
@@ -18,14 +18,9 @@ import Data.Text ( Text )
 import Data.Typeable
 import qualified Data.ByteString.Lazy as BL
 
--- | 'Auth' describes authentication credentials for
+-- | 'Client' describes authentication credentials and host info for
 -- making API requests to the Bitcoin daemon.
-data Auth = Auth
-    { rpcUrl      :: Text -- ^ URL, with port, where bitcoind listens
-    , rpcUser     :: Text -- ^ same as bitcoind's 'rpcuser' config
-    , rpcPassword :: Text -- ^ same as bitcoind's 'rpcpassword' config
-    }
-    deriving ( Show, Read, Ord, Eq )
+type Client = BL.ByteString -> IO BL.ByteString
 
 -- | A 'BitcoinException' is thrown when 'callApi encounters an
 --   error.  The API error code is represented as an @Int@, the message as

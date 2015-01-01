@@ -12,7 +12,8 @@
 --   out ahead.
 --
 --   Instead, consider using a GPU miner listed at <https://en.bitcoin.it/wiki/Software#Mining_apps>.
-module Network.Bitcoin.Mining ( Auth(..)
+module Network.Bitcoin.Mining ( Client
+                              , getClient
                               , getGenerate
                               , setGenerate
                               , getHashesPerSec
@@ -34,27 +35,27 @@ import Control.Monad
 import Network.Bitcoin.Internal
 
 -- | Returns whether or not bitcoind is generating bitcoins.
-getGenerate :: Auth -- ^ bitcoind RPC authorization
+getGenerate :: Client -- ^ bitcoind RPC client
             -> IO Bool
-getGenerate auth = callApi auth "getgenerate" []
+getGenerate client = callApi client "getgenerate" []
 
 -- | Controls whether or not bitcoind is generating bitcoins.
-setGenerate :: Auth -- ^ bitcoind RPC authorization
+setGenerate :: Client -- ^ bitcoind RPC client
             -> Bool -- ^ Turn it on, or turn it off?
             -> Maybe Int -- ^ Generation is limited to this number of
                          --   processors. Set it to Nothing to keep the value
                          --   at what it was before, Just -1 to use all
                          --   available cores, and any other value to limit it.
             -> IO ()
-setGenerate auth onOff Nothing =
-    unNil <$> callApi auth "setgenerate" [ tj onOff ]
-setGenerate auth onOff (Just limit) =
-    unNil <$> callApi auth "setgenerate" [ tj onOff, tj limit ]
+setGenerate client onOff Nothing =
+    unNil <$> callApi client "setgenerate" [ tj onOff ]
+setGenerate client onOff (Just limit) =
+    unNil <$> callApi client "setgenerate" [ tj onOff, tj limit ]
 
 -- | Returns a recent hashes per second performance measurement while
 --   generating.
-getHashesPerSec :: Auth -> IO Integer
-getHashesPerSec auth = callApi auth "gethashespersec" []
+getHashesPerSec :: Client -> IO Integer
+getHashesPerSec client = callApi client "gethashespersec" []
 
 -- | Information related to the current bitcoind mining operation.
 --
@@ -99,8 +100,8 @@ instance FromJSON MiningInfo where
     parseJSON _ = mzero
 
 -- | Returns an object containing mining-related information.
-getMiningInfo :: Auth -> IO MiningInfo
-getMiningInfo auth = callApi auth "getmininginfo" []
+getMiningInfo :: Client -> IO MiningInfo
+getMiningInfo client = callApi client "getmininginfo" []
 
 -- | The hash data returned from 'getWork'.
 data HashData =
@@ -123,12 +124,12 @@ instance ToJSON HashData where
     toJSON (HashData dat tar has mid) = object ["data" .= dat, "target" .= tar, "hash1" .= has, "midstate" .= mid]
 
 -- | Returns formatted hash data to work on.
-getWork :: Auth -> IO HashData
-getWork auth = callApi auth "getwork" []
+getWork :: Client -> IO HashData
+getWork client = callApi client "getwork" []
 
 -- | Tries to solve the given block, and returns true if it was successful.
-solveBlock :: Auth -> HexString -> IO Bool
-solveBlock auth data_ = callApi auth "getwork" [ tj data_ ]
+solveBlock :: Client -> HexString -> IO Bool
+solveBlock client data_ = callApi client "getwork" [ tj data_ ]
 
 -- | A transaction to be included in the next block.
 data Transaction =
@@ -207,8 +208,8 @@ instance FromJSON BlockTemplate where
     parseJSON _ = mzero
 
 -- | Returns data needed to construct a block to work on.
-getBlockTemplate :: Auth -> IO BlockTemplate
-getBlockTemplate auth = callApi auth "getblocktemplate" []
+getBlockTemplate :: Client -> IO BlockTemplate
+getBlockTemplate client = callApi client "getblocktemplate" []
 
 -- | Unfortunately, the submitblock API call returns null on success, and
 --   the string "rejected" on failure.
@@ -221,7 +222,7 @@ instance FromJSON StupidReturnValue where
     parseJSON _ = return $ SRV False
 
 -- | Attempts to submit a new block to the network.
-submitBlock :: Auth
+submitBlock :: Client
             -> HexString -- ^ The block to submit.
             -> IO Bool -- ^ Was the block accepted by the network?
-submitBlock auth block = unStupid <$> callApi auth "submitblock" [ tj block ]
+submitBlock client block = unStupid <$> callApi client "submitblock" [ tj block ]

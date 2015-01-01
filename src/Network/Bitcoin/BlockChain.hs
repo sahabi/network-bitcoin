@@ -6,7 +6,7 @@
 --
 --   If any APIs are missing, patches are always welcome. If you look at the
 --   source of this module, you'll see that the interface code is trivial.
-module Network.Bitcoin.BlockChain ( Auth(..)
+module Network.Bitcoin.BlockChain ( Client
                                   , TransactionID
                                   , BTC
                                   , getBlockCount
@@ -30,34 +30,34 @@ import Network.Bitcoin.Internal
 import Network.Bitcoin.RawTransaction
 
 -- | Returns the number of blocks in the longest block chain.
-getBlockCount :: Auth -> IO Integer
-getBlockCount auth = callApi auth "getblockcount" []
+getBlockCount :: Client -> IO Integer
+getBlockCount client = callApi client "getblockcount" []
 
 -- | Returns the proof-of-work difficulty as a multiple of the minimum
 --   difficulty.
-getDifficulty :: Auth -> IO Integer
-getDifficulty auth = callApi auth "getdifficulty" []
+getDifficulty :: Client -> IO Integer
+getDifficulty client = callApi client "getdifficulty" []
 
 -- | Sets the transaction fee will will pay to the network. Values of 0 are
 --   rejected.
-setTransactionFee :: Auth -> BTC -> IO ()
-setTransactionFee auth fee =
-    stupidAPI <$> callApi auth "settxfee" [ tj fee ]
+setTransactionFee :: Client -> BTC -> IO ()
+setTransactionFee client fee =
+    stupidAPI <$> callApi client "settxfee" [ tj fee ]
         where stupidAPI :: Bool -> ()
               stupidAPI = const ()
 
 -- | Returns all transaction identifiers in the memory pool.
-getRawMemoryPool :: Auth -> IO (Vector TransactionID)
-getRawMemoryPool auth = callApi auth "getrawmempool" []
+getRawMemoryPool :: Client -> IO (Vector TransactionID)
+getRawMemoryPool client = callApi client "getrawmempool" []
 
 -- | The hash of a given block.
 type BlockHash = HexString
 
 -- | Returns the hash of the block in best-block-chain at the given index.
-getBlockHash :: Auth
+getBlockHash :: Client
              -> Integer -- ^ Block index.
              -> IO BlockHash
-getBlockHash auth idx = callApi auth "getblockhash" [ tj idx ]
+getBlockHash client idx = callApi client "getblockhash" [ tj idx ]
 
 -- | Information about a given block in the block chain.
 data Block = Block { blockHash :: BlockHash
@@ -105,8 +105,8 @@ instance FromJSON Block where
     parseJSON _ = mzero
 
 -- | Returns details of a block with given block-hash.
-getBlock :: Auth -> BlockHash -> IO Block
-getBlock auth bh = callApi auth "getblock" [ tj bh ]
+getBlock :: Client -> BlockHash -> IO Block
+getBlock client bh = callApi client "getblock" [ tj bh ]
 
 -- | Information on the unspent transaction in the output set.
 data OutputSetInfo =
@@ -128,8 +128,8 @@ instance FromJSON OutputSetInfo where
     parseJSON _ = mzero
 
 -- | Returns statistics about the unspent transaction output set.
-getOutputSetInfo :: Auth -> IO OutputSetInfo
-getOutputSetInfo auth = callApi auth "gettxoutsetinfo" []
+getOutputSetInfo :: Client -> IO OutputSetInfo
+getOutputSetInfo client = callApi client "gettxoutsetinfo" []
 
 -- | Details about an unspent transaction output.
 data OutputInfo =
@@ -157,8 +157,8 @@ instance FromJSON OutputInfo where
     parseJSON _ = mzero
 
 -- | Returns details about an unspent transaction output.
-getOutputInfo :: Auth
+getOutputInfo :: Client
               -> TransactionID
               -> Integer -- ^ The index we're looking at.
               -> IO OutputInfo
-getOutputInfo auth txid n = callApi auth "gettxout" [ tj txid, tj n ]
+getOutputInfo client txid n = callApi client "gettxout" [ tj txid, tj n ]
