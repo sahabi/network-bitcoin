@@ -3,7 +3,8 @@
 module Network.Bitcoin
     (
     -- * Common Types
-      Auth(..)
+      Client
+    , getClient
     , BitcoinException(..)
     , HexString
     , TransactionID

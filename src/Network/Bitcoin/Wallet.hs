@@ -10,7 +10,8 @@
 --   Certain APIs were too complicated for me to write an interface for. If
 --   you figure them out, then patches are always welcome! They're left in
 --   the source as comments.
-module Network.Bitcoin.Wallet ( Auth(..)
+module Network.Bitcoin.Wallet ( Client
+                              , getClient
                               , BitcoindInfo(..)
                               , getBitcoindInfo
                               , getNewAddress
@@ -128,8 +129,8 @@ instance FromJSON BitcoindInfo where
     parseJSON _ = mzero
 
 -- | Returns an object containing various state info.
-getBitcoindInfo :: Auth -> IO BitcoindInfo
-getBitcoindInfo auth = callApi auth "getinfo" []
+getBitcoindInfo :: Client -> IO BitcoindInfo
+getBitcoindInfo client = callApi client "getinfo" []
 
 -- | Returns a new bitcoin address for receiving payments.
 --
@@ -139,29 +140,29 @@ getBitcoindInfo auth = callApi auth "getinfo" []
 --
 --   If no account is specified, the address will be credited to the account
 --   whose name is the empty string. i.e. the default account.
-getNewAddress :: Auth -> Maybe Account -> IO Address
-getNewAddress auth ma = let acc = fromMaybe "" ma
-                         in callApi auth "getnewaddress" [ tj acc ]
+getNewAddress :: Client -> Maybe Account -> IO Address
+getNewAddress client ma = let acc = fromMaybe "" ma
+                         in callApi client "getnewaddress" [ tj acc ]
 
 -- | Returns the current Bitcoin address for receiving payments to the given
 --   account.
-getAccountAddress :: Auth -> Account -> IO Address
-getAccountAddress auth acc = callApi auth "getaccountaddress" [ tj acc ]
+getAccountAddress :: Client -> Account -> IO Address
+getAccountAddress client acc = callApi client "getaccountaddress" [ tj acc ]
 
 -- | Sets the account associated with the given address.
-setAccount :: Auth -> Address -> Account -> IO ()
-setAccount auth addr acc = unNil <$> callApi auth "setaccount" [ tj addr, tj acc ]
+setAccount :: Client -> Address -> Account -> IO ()
+setAccount client addr acc = unNil <$> callApi client "setaccount" [ tj addr, tj acc ]
 
 -- | Returns the account associated with the given address.
-getAccount :: Auth -> Address -> IO Account
-getAccount auth addr = callApi auth "getaccount" [ tj addr ]
+getAccount :: Client -> Address -> IO Account
+getAccount client addr = callApi client "getaccount" [ tj addr ]
 
 -- | Returns the list of addresses for the given address.
-getAddressesByAccount :: Auth -> Account -> IO (Vector Address)
-getAddressesByAccount auth acc = callApi auth "getaddressesbyaccount" [ tj acc ]
+getAddressesByAccount :: Client -> Account -> IO (Vector Address)
+getAddressesByAccount client acc = callApi client "getaddressesbyaccount" [ tj acc ]
 
 -- | Sends some bitcoins to an address.
-sendToAddress :: Auth
+sendToAddress :: Client
               -> Address
               -- ^ Who we're sending to.
               -> BTC
@@ -172,8 +173,8 @@ sendToAddress :: Auth
               -- ^ An optional comment-to (who did we sent this to?) for the
               --   transaction.
               -> IO TransactionID
-sendToAddress auth addr amount comm comm2 =
-    callApi auth "sendtoaddress" [ tj addr, tj amount, tj comm, tj comm2 ]
+sendToAddress client addr amount comm comm2 =
+    callApi client "sendtoaddress" [ tj addr, tj amount, tj comm, tj comm2 ]
 
 -- | Information on a given address.
 data AddressInfo = AddressInfo { -- | The address in question.
@@ -199,25 +200,25 @@ instance FromJSON AddressInfo where
 -- | Lists groups of addresses which have had their common ownership made
 --   public by common use as inputs or as the resulting change in past
 --   transactions.
-listAddressGroupings :: Auth
+listAddressGroupings :: Client
                      -> IO (Vector (Vector AddressInfo))
-listAddressGroupings auth =
-    callApi auth "listaddressgroupings" []
+listAddressGroupings client =
+    callApi client "listaddressgroupings" []
 
 -- | A signature is a base-64 encoded string.
 type Signature = HexString
 
 -- | Sign a message with the private key of an address.
-signMessage :: Auth
+signMessage :: Client
             -> Address
             -- ^ The address whose private key we'll use.
             -> Text
             -- ^ The message to sign.
             -> IO Signature
-signMessage auth addr msg = callApi auth "signmessage" [ tj addr, tj msg ]
+signMessage client addr msg = callApi client "signmessage" [ tj addr, tj msg ]
 
 -- | Verifies a signed message.
-verifyMessage :: Auth
+verifyMessage :: Client
               -> Address
               -- ^ The address of the original signer.
               -> Signature
@@ -226,80 +227,80 @@ verifyMessage :: Auth
               -- ^ The message.
               -> IO Bool
               -- ^ Was the signature valid?
-verifyMessage auth addr sig msg =
-    callApi auth "verifymessage" [ tj addr, tj sig, tj msg ]
+verifyMessage client addr sig msg =
+    callApi client "verifymessage" [ tj addr, tj sig, tj msg ]
 
 -- | Returns the total amount received by the given address with at least one
 --   confirmation.
-getReceivedByAddress :: Auth -> Address -> IO BTC
-getReceivedByAddress auth addr =
-    callApi auth "getreceivedbyaddress" [ tj addr ]
+getReceivedByAddress :: Client -> Address -> IO BTC
+getReceivedByAddress client addr =
+    callApi client "getreceivedbyaddress" [ tj addr ]
 
 -- | Returns the total amount received by the given address, with at least the
 --   give number of confirmations.
-getReceivedByAddress' :: Auth
+getReceivedByAddress' :: Client
                       -> Address
                       -> Int -- ^ The minimum number of confirmations needed
                              --   for a transaction to to count towards the
                              --   total.
                       -> IO BTC
-getReceivedByAddress' auth addr minconf =
-    callApi auth "getreceivedbyaddress" [ tj addr, tj minconf ]
+getReceivedByAddress' client addr minconf =
+    callApi client "getreceivedbyaddress" [ tj addr, tj minconf ]
 
 -- | Returns the total amount received by address with the given account.
-getReceivedByAccount :: Auth -> Account -> IO BTC
-getReceivedByAccount auth acc =
-    callApi auth "getreceivedbyaccount" [ tj acc ]
+getReceivedByAccount :: Client -> Account -> IO BTC
+getReceivedByAccount client acc =
+    callApi client "getreceivedbyaccount" [ tj acc ]
 
 -- | Returns the total amount received by addresses with the given account,
 --   counting only transactions with the given minimum number of confirmations.
-getReceivedByAccount' :: Auth
+getReceivedByAccount' :: Client
                       -> Account
                       -- ^ The account in question.
                       -> Int
                       -- ^ The minimum number of confirmations needed for a
                       --   transaction to count towards the total.
                       -> IO BTC
-getReceivedByAccount' auth acc minconf =
-    callApi auth "getreceivedbyaccount" [ tj acc, tj minconf ]
+getReceivedByAccount' client acc minconf =
+    callApi client "getreceivedbyaccount" [ tj acc, tj minconf ]
 
 -- | Returns the server's total available balance.
-getBalance :: Auth
+getBalance :: Client
            -> IO BTC
-getBalance auth =
-    callApi auth "getbalance" []
+getBalance client =
+    callApi client "getbalance" []
 
 -- | Returns the balance in the given account, counting only transactions with
 --   at least one confirmation.
-getBalance' :: Auth
+getBalance' :: Client
             -> Account
             -> IO BTC
-getBalance' auth acc =
-    callApi auth "getbalance" [ tj acc ]
+getBalance' client acc =
+    callApi client "getbalance" [ tj acc ]
 
 -- | Returns the balance in the given account, counting only transactions with
 --   at least the given number of confirmations.
-getBalance'' :: Auth
+getBalance'' :: Client
              -> Account
              -> Int
              -- ^ The minimum number of confirmations needed for a transaction
              --   to count towards the total.
              -> IO BTC
-getBalance'' auth acc minconf =
-    callApi auth "getbalance" [ tj acc, tj minconf ]
+getBalance'' client acc minconf =
+    callApi client "getbalance" [ tj acc, tj minconf ]
 
 -- | Move bitcoins from one account in your wallet to another.
 --
 --   If you want to send bitcoins to an address not in your wallet, use
 --   'sendFromAccount'.
-moveBitcoins :: Auth
+moveBitcoins :: Client
              -> Account -- ^ From.
              -> Account -- ^ To.
              -> BTC     -- ^ The amount to transfer.
              -> Text    -- ^ A comment to record for the transaction.
              -> IO ()
-moveBitcoins auth from to amt comm =
-    stupidAPI <$> callApi auth "move" [ tj from, tj to, tj amt, tj one, tj comm ]
+moveBitcoins client from to amt comm =
+    stupidAPI <$> callApi client "move" [ tj from, tj to, tj amt, tj one, tj comm ]
         where one = 1 :: Int -- needs a type, else default-integer warnings.
               stupidAPI :: Bool -> ()
               stupidAPI = const ()
@@ -307,7 +308,7 @@ moveBitcoins auth from to amt comm =
 -- | Sends bitcoins from a given account in our wallet to a given address.
 --
 --   A transaction and sender comment may be optionally provided.
-sendFromAccount :: Auth
+sendFromAccount :: Client
                 -> Account
                 -- ^ The account to send from.
                 -> Address
@@ -319,12 +320,12 @@ sendFromAccount :: Auth
                 -> Maybe Text
                 -- ^ An optional comment on who the money is going to.
                 -> IO TransactionID
-sendFromAccount auth from to amount comm comm2 =
-    callApi auth "sendfrom" [ tj from, tj to, tj amount, tj one, tj comm, tj comm2 ]
+sendFromAccount client from to amount comm comm2 =
+    callApi client "sendfrom" [ tj from, tj to, tj amount, tj one, tj comm, tj comm2 ]
         where one = 1 :: Int -- needs a type, else default-integer warnings.
 
 -- | Send to a whole bunch of address at once.
-sendMany :: Auth
+sendMany :: Client
          -> Account
          -- ^ The account to send from.
          -> Vector (Address, BTC)
@@ -332,8 +333,8 @@ sendMany :: Auth
          -> Maybe Text
          -- ^ An optional transaction comment.
          -> IO TransactionID
-sendMany auth acc amounts comm =
-    callApi auth "sendmany" [ tj acc, tj $ AA amounts, tj comm ]
+sendMany client acc amounts comm =
+    callApi client "sendmany" [ tj acc, tj $ AA amounts, tj comm ]
 
 -- TODO: createmultisig.
 --
@@ -363,12 +364,12 @@ instance FromJSON ReceivedByAddress where
 
 -- | Lists the amount received by each address which has received money at some
 --   point, counting only transactions with at least one confirmation.
-listReceivedByAddress :: Auth -> IO (Vector ReceivedByAddress)
-listReceivedByAddress auth = listReceivedByAddress' auth 1 False
+listReceivedByAddress :: Client -> IO (Vector ReceivedByAddress)
+listReceivedByAddress client = listReceivedByAddress' client 1 False
 
 -- | List the amount received by each of our addresses, counting only
 --   transactions with the given minimum number of confirmations.
-listReceivedByAddress' :: Auth
+listReceivedByAddress' :: Client
                        -> Int
                        -- ^ The minimum number of confirmations before a
                        --   transaction counts toward the total amount
@@ -377,8 +378,8 @@ listReceivedByAddress' :: Auth
                        -- ^ Should we include addresses with no money
                        --   received?
                        -> IO (Vector ReceivedByAddress)
-listReceivedByAddress' auth minconf includeEmpty =
-    callApi auth "listreceivedbyaddress" [ tj minconf, tj includeEmpty ]
+listReceivedByAddress' client minconf includeEmpty =
+    callApi client "listreceivedbyaddress" [ tj minconf, tj includeEmpty ]
 
 data ReceivedByAccount =
     ReceivedByAccount { raccAccount :: Account
@@ -399,12 +400,12 @@ instance FromJSON ReceivedByAccount where
 
 -- | Lists the amount received by each account which has received money at some
 --   point, counting only transactions with at leaset one confirmation.
-listReceivedByAccount :: Auth -> IO (Vector ReceivedByAccount)
-listReceivedByAccount auth = listReceivedByAccount' auth 1 False
+listReceivedByAccount :: Client -> IO (Vector ReceivedByAccount)
+listReceivedByAccount client = listReceivedByAccount' client 1 False
 
 -- | List the amount received by each of our accounts, counting only
 --   transactions with the given minimum number of confirmations.
-listReceivedByAccount' :: Auth
+listReceivedByAccount' :: Client
                        -> Int
                        -- ^ The minimum number of confirmations before a
                        --   transaction counts toward the total received.
@@ -412,8 +413,8 @@ listReceivedByAccount' :: Auth
                        -- ^ Should we include the accounts with no money
                        --   received?
                        -> IO (Vector ReceivedByAccount)
-listReceivedByAccount' auth minconf includeEmpty =
-    callApi auth "listreceivedbyaccount" [ tj minconf, tj includeEmpty ]
+listReceivedByAccount' client minconf includeEmpty =
+    callApi client "listreceivedbyaccount" [ tj minconf, tj includeEmpty ]
     
 
 data SinceBlock = 
@@ -522,7 +523,7 @@ instance FromJSON TransactionCategory where
     parseJSON _ = mzero
     
 -- | Gets all transactions in blocks since the given block.
-listSinceBlock :: Auth
+listSinceBlock :: Client
                -> BlockHash
                -- ^ The hash of the first block to list.
                -> Maybe Int
@@ -531,12 +532,12 @@ listSinceBlock :: Auth
                --   not in any way affect which transactions are returned 
                --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
                -> IO (SinceBlock)
-listSinceBlock auth blockHash conf =
-    listSinceBlock' auth (Just blockHash) conf
+listSinceBlock client blockHash conf =
+    listSinceBlock' client (Just blockHash) conf
 
 -- | Gets all transactions in blocks since the given block, or all 
 --   transactions if ommited.
-listSinceBlock' :: Auth
+listSinceBlock' :: Client
                 -> Maybe BlockHash
                 -- ^ The hash of the first block to list.
                 -> Maybe Int
@@ -545,12 +546,12 @@ listSinceBlock' :: Auth
                 --   not in any way affect which transactions are returned 
                 --   (see https://github.com/bitcoin/bitcoin/pull/199#issuecomment-1514952)
                 -> IO (SinceBlock)
-listSinceBlock' auth mblockHash mminConf =
-    callApi auth "listsinceblock" $ tja mblockHash ++ tja mminConf
+listSinceBlock' client mblockHash mminConf =
+    callApi client "listsinceblock" $ tja mblockHash ++ tja mminConf
         
     
 -- | Returns transactions from the blockchain.
-listTransactions :: Auth
+listTransactions :: Client
                  -> Account
                  -- ^ Limits the 'BlockTransaction' returned to those from or to 
                  --   the given 'Account'.
@@ -559,11 +560,11 @@ listTransactions :: Auth
                  -> Int
                  -- ^ Number of most recent transactions to skip. 
                  -> IO (Vector SimpleTransaction)
-listTransactions auth account size from =
-    listTransactions' auth (Just account) (Just size) (Just from)
+listTransactions client account size from =
+    listTransactions' client (Just account) (Just size) (Just from)
 
 -- | Returns transactions from the blockchain.
-listTransactions' :: Auth
+listTransactions' :: Client
                   -> Maybe Account
                   -- ^ Limits the 'BlockTransaction' returned to those from or to 
                   --   the given 'Account'. If 'Nothing' all accounts are 
@@ -574,18 +575,18 @@ listTransactions' :: Auth
                   -> Maybe Int
                   -- ^ Number of most recent transactions to skip. 
                   -> IO (Vector SimpleTransaction)
-listTransactions' auth maccount mcount mfrom =
-    callApi auth "listtransactions" $ [ tjm "*" maccount ] ++ tja mcount ++ tja mfrom
+listTransactions' client maccount mcount mfrom =
+    callApi client "listtransactions" $ [ tjm "*" maccount ] ++ tja mcount ++ tja mfrom
 
 
 -- | List accounts and their current balance.
-listAccounts :: Auth
+listAccounts :: Client
              -> Maybe Int
              -- ^ Minimum number of confirmations required before payments are 
              --   included in the balance.
              -> IO (HM.HashMap Account BTC)
-listAccounts auth mconf = 
-    callApi auth "listaccounts" [ tjm 1 mconf ]
+listAccounts client mconf = 
+    callApi client "listaccounts" [ tjm 1 mconf ]
 
 -- | Data type for detailed transactions. Rules involving 'trCategory' are 
 --   indications of the most probable value only when the transaction is 
@@ -659,44 +660,44 @@ instance FromJSON DetailedTransactionDetails where
                                                       <*> o .:  "amount"
     parseJSON _ = mzero
 
-getTransaction :: Auth 
+getTransaction :: Client 
                -> TransactionID
                -> IO (DetailedTransaction)
-getTransaction auth txid = 
-    callApi auth "gettransaction" [ tj txid ]
+getTransaction client txid = 
+    callApi client "gettransaction" [ tj txid ]
 
 
 -- | Safely copies wallet.dat to the given destination, which can be either a
 --   directory, or a path with filename.
-backupWallet :: Auth
+backupWallet :: Client
              -> FilePath
              -> IO ()
-backupWallet auth fp =
-    unNil <$> callApi auth "backupwallet" [ tj fp ]
+backupWallet client fp =
+    unNil <$> callApi client "backupwallet" [ tj fp ]
 
 -- | Fills the keypool.
-keyPoolRefill :: Auth -> IO ()
-keyPoolRefill auth = unNil <$> callApi auth "keypoolrefill" []
+keyPoolRefill :: Client -> IO ()
+keyPoolRefill client = unNil <$> callApi client "keypoolrefill" []
 
 -- | Stores the wallet decryption key in memory for the given amount of time.
-unlockWallet :: Auth
+unlockWallet :: Client
              -> Text
              -- ^ The decryption key.
              -> Integer
              -- ^ How long to store the key in memory (in seconds).
              -> IO ()
-unlockWallet auth pass timeout =
-    unNil <$> callApi auth "walletpassphrase" [ tj pass, tj timeout ]
+unlockWallet client pass timeout =
+    unNil <$> callApi client "walletpassphrase" [ tj pass, tj timeout ]
 
 -- | Changes the wallet passphrase.
-changePassword :: Auth
+changePassword :: Client
                -> Text
                -- ^ The old password.
                -> Text
                -- ^ The new password.
                -> IO ()
-changePassword auth old new =
-    unNil <$> callApi auth "walletpassphrase" [ tj old, tj new ]
+changePassword client old new =
+    unNil <$> callApi client "walletpassphrase" [ tj old, tj new ]
 
 -- | Removes the wallet encryption key from memory, locking the wallet.
 --
@@ -705,15 +706,15 @@ changePassword auth old new =
 --
 --   Note: In future releases, we might introduce an "unlocked" monad, so
 --         locking and unlocking is automatic.
-lockWallet :: Auth -> IO ()
-lockWallet auth = unNil <$> callApi auth "walletlock" []
+lockWallet :: Client -> IO ()
+lockWallet client = unNil <$> callApi client "walletlock" []
 
 -- | Encrypts the wallet with the given passphrase.
 --
 --   WARNING: bitcoind will shut down after calling this method. Don't say I
 --            didn't warn you.
-encryptWallet :: Auth -> Text -> IO ()
-encryptWallet auth pass = stupidAPI <$> callApi auth "encryptwallet" [ tj pass ]
+encryptWallet :: Client -> Text -> IO ()
+encryptWallet client pass = stupidAPI <$> callApi client "encryptwallet" [ tj pass ]
     where
         stupidAPI :: Text -> ()
         stupidAPI = const ()
@@ -727,5 +728,5 @@ instance FromJSON IsValid where
     parseJSON _ = mzero
 
 -- | Checks if a given address is a valid one.
-isAddressValid :: Auth -> Address -> IO Bool
-isAddressValid auth addr = getValid <$> callApi auth "validateaddress" [ tj addr ]
+isAddressValid :: Client -> Address -> IO Bool
+isAddressValid client addr = getValid <$> callApi client "validateaddress" [ tj addr ]

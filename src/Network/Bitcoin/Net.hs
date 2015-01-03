@@ -6,7 +6,8 @@
 --
 --   If any APIs are missing, patches are always welcome. If you look at the
 --   source of this module, you'll see that the interface code is trivial.
-module Network.Bitcoin.Net ( Auth(..)
+module Network.Bitcoin.Net ( Client
+                           , getClient
                            , getConnectionCount
                            , PeerInfo(..)
                            , getPeerInfo
@@ -18,8 +19,8 @@ import Data.Aeson
 import Network.Bitcoin.Internal
 
 -- | Returns the number of connections to other nodes.
-getConnectionCount :: Auth -> IO Integer
-getConnectionCount auth = callApi auth "getconnectioncount" []
+getConnectionCount :: Client -> IO Integer
+getConnectionCount client = callApi client "getconnectioncount" []
 
 -- | Information about a peer node of the Bitcoin network.
 --
@@ -68,5 +69,5 @@ instance FromJSON PeerInfo where
     parseJSON _ = mzero
 
 -- | Returns data about all connected peer nodes.
-getPeerInfo :: Auth -> IO [PeerInfo]
-getPeerInfo auth = callApi auth "getpeerinfo" []
+getPeerInfo :: Client -> IO [PeerInfo]
+getPeerInfo client = callApi client "getpeerinfo" []

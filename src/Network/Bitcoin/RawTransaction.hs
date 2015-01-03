@@ -10,7 +10,8 @@
 --
 --   Also, documentation for this module is scarce. I would love the addition
 --   of more documentation by anyone who knows what these things are.
-module Network.Bitcoin.RawTransaction ( Auth(..)
+module Network.Bitcoin.RawTransaction ( Client
+                                      , getClient
                                       , RawTransaction
                                       , getRawTransaction
                                       , TxIn(..)
@@ -47,9 +48,9 @@ import           Network.Bitcoin.Internal
 type RawTransaction = HexString
 
 -- | Get a raw transaction from its unique ID.
-getRawTransaction :: Auth -> TransactionID -> IO RawTransaction
-getRawTransaction auth txid =
-    callApi auth "getrawtransaction" [ tj txid, tj verbose ]
+getRawTransaction :: Client -> TransactionID -> IO RawTransaction
+getRawTransaction client txid =
+    callApi client "getrawtransaction" [ tj txid, tj verbose ]
         where verbose = 0 :: Int
 
 -- | A transaction into an account. This can either be a coinbase transaction,
@@ -213,9 +214,9 @@ instance FromJSON RawTransactionInfo where
 -- | Get raw transaction info for a given transaction ID. The data structure
 --   returned is quite sprawling and undocumented, so any patches to help
 --   simplify things would be greatly appreciated.
-getRawTransactionInfo :: Auth -> TransactionID -> IO RawTransactionInfo
-getRawTransactionInfo auth txid =
-    callApi auth "getrawtransaction" [ tj txid, tj verbose ]
+getRawTransactionInfo :: Client -> TransactionID -> IO RawTransactionInfo
+getRawTransactionInfo client txid =
+    callApi client "getrawtransaction" [ tj txid, tj verbose ]
         where verbose = 1 :: Int
 
 data UnspentTransaction =
@@ -247,15 +248,15 @@ instance ToJSON UnspentTransaction where
 -- | Returns an array of unspent transaction outputs with between minconf and
 --   maxconf (inclusive) confirmations. If addresses are given, the result will
 --   be filtered to include only those addresses.
-listUnspent :: Auth
+listUnspent :: Client
             -> Maybe Int -- ^ minconf. Defaults to 1 if 'Nothing'.
             -> Maybe Int -- ^ maxconf. Defaults to 9999999 if 'Nothing'.
             -> Vector Address -- ^ Use 'Data.Vector.empty' for no filtering.
             -> IO (Vector UnspentTransaction)
-listUnspent auth mmin mmax vaddrs =
+listUnspent client mmin mmax vaddrs =
     let min' = fromMaybe 1 mmin
         max' = fromMaybe 9999999 mmax
-     in callApi auth "listunspent" [ tj min', tj max', tj vaddrs ]
+     in callApi client "listunspent" [ tj min', tj max', tj vaddrs ]
 
 -- | Create a transaction spending given inputs, sending to given addresses.
 --
@@ -265,15 +266,15 @@ listUnspent auth mmin mmax vaddrs =
 --   Also, there is no checking to see if it's possible to send that much to
 --   the targets specified. In the future, such a scenario might throw an
 --   exception.
-createRawTransaction :: Auth
+createRawTransaction :: Client
                      -> Vector UnspentTransaction
                      -- ^ The unspent transactions we'll be using as our output.
                      -> Vector (Address, BTC)
                      -- ^ The addresses we're sending money to, along with how
                      --   much each of them gets.
                      -> IO HexString
-createRawTransaction auth us tgts =
-    callApi auth "createrawtransaction" [ tj us, tj $ AA tgts ]
+createRawTransaction client us tgts =
+    callApi client "createrawtransaction" [ tj us, tj $ AA tgts ]
 
 -- | A successfully decoded raw transaction, from a given serialized,
 --   hex-encoded transaction.
@@ -298,8 +299,8 @@ instance FromJSON DecodedRawTransaction where
     parseJSON _ = mzero
 
 -- | Decodes a raw transaction into a more accessible data structure.
-decodeRawTransaction :: Auth -> RawTransaction -> IO DecodedRawTransaction
-decodeRawTransaction auth tx = callApi auth "decoderawtransaction" [ tj tx ]
+decodeRawTransaction :: Client -> RawTransaction -> IO DecodedRawTransaction
+decodeRawTransaction client tx = callApi client "decoderawtransaction" [ tj tx ]
 
 -- | Used internally to give a new 'ToJSON' instance for 'UnspentTransaction'.
 newtype UnspentForSigning = UFS UnspentTransaction
@@ -348,7 +349,7 @@ instance FromJSON RawSignedTransaction where
     parseJSON _ = mzero
 
 -- | Sign inputs for a raw transaction.
-signRawTransaction :: Auth
+signRawTransaction :: Client
                    -> RawTransaction
                    -- ^ The raw transaction whose inputs we're signing.
                    -> Maybe (Vector UnspentTransaction)
@@ -363,13 +364,13 @@ signRawTransaction :: Auth
                    -> IO RawSignedTransaction
                    -- ^ Returns 'Nothing' if the transaction has a complete set
                    --   of signatures, and the raw signed transa
-signRawTransaction auth rt us' privkeys wcp =
+signRawTransaction client rt us' privkeys wcp =
     let us = V.map UFS <$> us' :: Maybe (Vector UnspentForSigning)
-     in callApi auth "signrawtransaction" [ tj rt
+     in callApi client "signrawtransaction" [ tj rt
                                           , tj us
                                           , tj privkeys
                                           , tj . toString $ fromMaybe All wcp
                                           ]
 
-sendRawTransaction :: Auth -> RawTransaction -> IO TransactionID
-sendRawTransaction auth rt = callApi auth "sendrawtransaction" [ tj rt ]
+sendRawTransaction :: Client -> RawTransaction -> IO TransactionID
+sendRawTransaction client rt = callApi client "sendrawtransaction" [ tj rt ]

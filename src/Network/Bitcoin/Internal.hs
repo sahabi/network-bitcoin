@@ -15,7 +15,7 @@ module Network.Bitcoin.Internal ( module Network.Bitcoin.Types
                                 , Text, Vector
                                 , FromJSON(..)
                                 , callApi
-                                , callApi'
+                                , getClient
                                 , Nil(..)
                                 , tj
                                 , tjm
@@ -32,12 +32,13 @@ import           Data.Maybe
 import           Data.Vector ( Vector )
 import qualified Data.Vector          as V
 import           Network.Bitcoin.Types
-import           Network.Browser
-import           Network.HTTP hiding ( password )
-import           Network.URI ( parseURI )
 import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString      as BS
 import           Data.Text ( Text )
 import qualified Data.Text            as T
+import           Network.HTTP.Client
+import           Network.HTTP.Types.Header
+
 
 -- | RPC calls return an error object. It can either be empty; or have an
 --   error message + error code.
@@ -63,40 +64,44 @@ instance FromJSON a => FromJSON (BitcoinRpcResponse a) where
                                               <*> v .: "error"
     parseJSON _          = mzero
 
--- | The "no conversion needed" implementation of callApi. THis lets us inline
---   and specialize callApi for its parameters, while keeping the bulk of the
---   work in this function shared.
-callApi' :: Auth -> BL.ByteString -> IO BL.ByteString
-callApi' auth rpcReqBody = do
-    (_, httpRes) <- browse $ do
-        setOutHandler . const $ return ()
-        addAuthority authority
-        setAllowBasicAuth True
-        request $ httpRequest (T.unpack urlString) rpcReqBody
-    return $ rspBody httpRes
-    where
-        authority = httpAuthority auth
-        urlString = rpcUrl auth
+-- | 'getClient' takes a url, rpc username, and rpc password
+--   and returns a Client that can be used to make API calls. Each
+--   Client encloses a Manager (from http-client) that re-uses
+--   connections for requests, so long as the same Client is
+--   is used for each call.
+getClient :: String
+          -> BS.ByteString
+          -> BS.ByteString
+          -> IO Client
+getClient url user pass = do
+    mgr <- newManager defaultManagerSettings
+    return $ \r -> do
+        resp <- httpLbs (baseReq { requestBody = RequestBodyLBS r }) mgr
+        return $ responseBody resp
+  where
+    baseReq = applyBasicAuth user pass $ (fromJust $ parseUrl url)
+                { method = "POST"
+                , requestHeaders = [(hContentType, "application/json")]
+                }
 
 -- | 'callApi' is a low-level interface for making authenticated API
 --   calls to a Bitcoin daemon. The first argument specifies
---   authentication details (URL, username, password) and is often
---   curried for convenience:
---
---   > callBtc = callApi $ Auth "http://127.0.0.1:8332" "user" "password"
+--   rpc client details (URL, username, password) 
 --
 --   The second argument is the command name.  The third argument provides
 --   parameters for the API call.
 --
---   > let result = callBtc "getbalance" [ tj "account-name", tj 6 ]
+--   > genHash = do
+--       client <- getClient "http://127.0.0.1:8332" "user" "password"
+--       callApi client "getblockhash" [tj 0] 
 --
 --   On error, throws a 'BitcoinException'.
 callApi :: FromJSON v
-        => Auth    -- ^ authentication credentials for bitcoind
+        => Client  -- ^ RPC client for bitcoind
         -> Text    -- ^ command name
         -> [Value] -- ^ command arguments
         -> IO v
-callApi auth cmd params = readVal =<< callApi' auth jsonRpcReqBody
+callApi client cmd params = readVal =<< client jsonRpcReqBody
     where
         readVal bs = case decode' bs of
                          Just r@(BitcoinRpcResponse {btcError=NoError})
@@ -120,27 +125,6 @@ instance FromJSON Nil where
     parseJSON Null = return $ Nil ()
     parseJSON x    = fail $ "\"null\" was expected, but " ++ show x ++ " was recieved."
 
--- | Internal helper functions to make callApi more readable
-httpAuthority :: Auth -> Authority
-httpAuthority (Auth urlString username password) =
-    AuthBasic { auRealm    = "jsonrpc"
-              , auUsername = T.unpack username
-              , auPassword = T.unpack password
-              , auSite     = uri
-              }
-    where
-        uri = fromJust . parseURI $ T.unpack urlString
-
--- | Builds the JSON HTTP request.
-httpRequest :: String -> BL.ByteString -> Request BL.ByteString
-httpRequest urlString jsonBody =
-    (postRequest urlString){
-        rqBody = jsonBody,
-        rqHeaders = [
-            mkHeader HdrContentType "application/json",
-            mkHeader HdrContentLength (show $ BL.length jsonBody)
-        ]
-    }
 
 -- | A handy shortcut for toJSON, because I'm lazy.
 tj :: ToJSON a => a -> Value

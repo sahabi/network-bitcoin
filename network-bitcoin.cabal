@@ -1,5 +1,5 @@
 Name:                network-bitcoin
-Version:             1.6.0
+Version:             1.7.0
 Synopsis:            An interface to bitcoind.
 Description:
     This can be used to send Bitcoins, query balances, etc.  It
@@ -49,16 +49,19 @@ Library
     Network.Bitcoin.Wallet
 
   Build-depends:
-    aeson >= 0.6.1 && < 0.7.1,
+    aeson >= 0.8,
     bytestring >= 0.9 && < 0.11,
-    attoparsec == 0.10.*,
+    cookie >= 0.4,
+    attoparsec == 0.12.*,
     unordered-containers >= 0.2,
     HTTP >= 4000,
+    http-types >= 0.8.5,
     network >= 2.3,
     text >= 0.11,
     vector >= 0.10,
     base == 4.*,
-    time >= 1.4.2
+    time >= 1.4.2,
+    http-client >= 0.4.6
 
 Source-repository head
   type: git
@@ -69,16 +72,18 @@ Executable network-bitcoin-tests
   ghc-options: -Wall
   main-is: Test/Main.hs
   build-depends:
-    aeson >= 0.6.1 && < 0.7.1,
+    aeson >= 0.8,
     bytestring >= 0.9 && < 0.11,
-    attoparsec == 0.10.*,
+    cookie >= 0.4,
+    attoparsec == 0.12.*,
     unordered-containers >= 0.2,
     HTTP >= 4000,
+    http-types >= 0.8.5,
     network >= 2.3,
     text >= 0.11,
     vector >= 0.10,
     base == 4.*,
     time >= 1.4.2,
     QuickCheck >= 2.6,
+    http-client >= 0.4.6,
     network-bitcoin
-
