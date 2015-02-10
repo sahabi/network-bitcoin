@@ -74,15 +74,14 @@ getClient :: String
           -> BS.ByteString
           -> IO Client
 getClient url user pass = do
+    url' <- parseUrl url
     mgr <- newManager defaultManagerSettings
+    let baseReq = applyBasicAuth user pass url'
+            { method = "POST"
+            , requestHeaders = [(hContentType, "application/json")] }
     return $ \r -> do
         resp <- httpLbs (baseReq { requestBody = RequestBodyLBS r }) mgr
         return $ responseBody resp
-  where
-    baseReq = applyBasicAuth user pass $ (fromJust $ parseUrl url)
-                { method = "POST"
-                , requestHeaders = [(hContentType, "application/json")]
-                }
 
 -- | 'callApi' is a low-level interface for making authenticated API
 --   calls to a Bitcoin daemon. The first argument specifies
