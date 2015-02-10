@@ -342,10 +342,9 @@ data RawSignedTransaction =
                          , hasCompleteSigSet :: Bool
                          }
 
--- I have no idea why they use a 1/0 to represent a boolean.
 instance FromJSON RawSignedTransaction where
     parseJSON (Object o) = RawSignedTransaction <$> o .: "hex"
-                                                <*> (toEnum <$> o .: "complete")
+                                                <*> o .: "complete"
     parseJSON _ = mzero
 
 -- | Sign inputs for a raw transaction.
