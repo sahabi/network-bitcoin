@@ -697,7 +697,7 @@ changePassword :: Client
                -- ^ The new password.
                -> IO ()
 changePassword client old new =
-    unNil <$> callApi client "walletpassphrase" [ tj old, tj new ]
+    unNil <$> callApi client "walletpassphrasechange" [ tj old, tj new ]
 
 -- | Removes the wallet encryption key from memory, locking the wallet.
 --
