@@ -32,10 +32,8 @@ import           Data.Maybe
 import           Data.Vector ( Vector )
 import qualified Data.Vector          as V
 import           Network.Bitcoin.Types
-import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString      as BS
 import           Data.Text ( Text )
-import qualified Data.Text            as T
 import           Network.HTTP.Client
 import           Network.HTTP.Types.Header
 
@@ -85,14 +83,14 @@ getClient url user pass = do
 
 -- | 'callApi' is a low-level interface for making authenticated API
 --   calls to a Bitcoin daemon. The first argument specifies
---   rpc client details (URL, username, password) 
+--   rpc client details (URL, username, password)
 --
 --   The second argument is the command name.  The third argument provides
 --   parameters for the API call.
 --
 --   > genHash = do
 --       client <- getClient "http://127.0.0.1:8332" "user" "password"
---       callApi client "getblockhash" [tj 0] 
+--       callApi client "getblockhash" [tj 0]
 --
 --   On error, throws a 'BitcoinException'.
 callApi :: FromJSON v
@@ -145,4 +143,3 @@ newtype AddrAddress = AA (Vector (Address, BTC))
 
 instance ToJSON AddrAddress where
     toJSON (AA vec) = object . V.toList $ uncurry (.=) <$> vec
-
