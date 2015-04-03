@@ -40,17 +40,21 @@ getGenerate :: Client -- ^ bitcoind RPC client
 getGenerate client = callApi client "getgenerate" []
 
 -- | Controls whether or not bitcoind is generating bitcoins.
+--   If bitcoind runs in regtest mode the number of generated hashes is returned.
+--   See https://bitcoin.org/en/developer-reference#setgenerate for more details.
 setGenerate :: Client -- ^ bitcoind RPC client
             -> Bool -- ^ Turn it on, or turn it off?
             -> Maybe Int -- ^ Generation is limited to this number of
                          --   processors. Set it to Nothing to keep the value
                          --   at what it was before, Just -1 to use all
                          --   available cores, and any other value to limit it.
-            -> IO ()
+                         --   If bitcoind runs in regtest mode instead of the number of processors,
+                         --   this specifies the number of hashes to generate.
+            -> IO (Maybe [HexString])
 setGenerate client onOff Nothing =
-    unNil <$> callApi client "setgenerate" [ tj onOff ]
+    unArr <$> callApi client "setgenerate" [ tj onOff ]
 setGenerate client onOff (Just limit) =
-    unNil <$> callApi client "setgenerate" [ tj onOff, tj limit ]
+    unArr <$> callApi client "setgenerate" [ tj onOff, tj limit ]
 
 -- | Returns a recent hashes per second performance measurement while
 --   generating.

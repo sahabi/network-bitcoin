@@ -17,6 +17,7 @@ module Network.Bitcoin.Internal ( module Network.Bitcoin.Types
                                 , callApi
                                 , getClient
                                 , Nil(..)
+                                , NilOrArray(..)
                                 , tj
                                 , tjm
                                 , tja
@@ -122,6 +123,13 @@ instance FromJSON Nil where
     parseJSON Null = return $ Nil ()
     parseJSON x    = fail $ "\"null\" was expected, but " ++ show x ++ " was recieved."
 
+-- | Used to parse "null" or [HexString]
+data NilOrArray = NilOrArray {unArr :: Maybe [HexString]}
+
+instance FromJSON NilOrArray where
+    parseJSON Null = return $ NilOrArray Nothing
+    parseJSON a@(Array _) = liftM NilOrArray $ parseJSON a
+    parseJSON x = fail $ "Expected \"null\" or array, but " ++ show x ++ " was recieved."
 
 -- | A handy shortcut for toJSON, because I'm lazy.
 tj :: ToJSON a => a -> Value
