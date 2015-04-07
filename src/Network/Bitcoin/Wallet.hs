@@ -334,7 +334,7 @@ sendMany :: Client
          -- ^ An optional transaction comment.
          -> IO TransactionID
 sendMany client acc amounts comm =
-    callApi client "sendmany" [ tj acc, tj $ AA amounts, tj comm ]
+    callApi client "sendmany" [ tj acc, tj $ AA amounts, tj (1 :: Int), tj comm ]
 
 -- TODO: createmultisig.
 --
